@@ -1,9 +1,16 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { FractalRenderer } from '@/renderer/FractalRenderer';
 import { useExplorerStore } from '@/state/ExplorerStore';
 
 export function useFractalRenderer(canvasRef: React.RefObject<HTMLCanvasElement | null>) {
   const store = useExplorerStore;
+  const [shaderEpoch, setShaderEpoch] = useState(0);
+
+  useEffect(() => {
+    const onHot = () => setShaderEpoch((n) => n + 1);
+    window.addEventListener('fractal-shader-hmr', onHot);
+    return () => window.removeEventListener('fractal-shader-hmr', onHot);
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -20,18 +27,18 @@ export function useFractalRenderer(canvasRef: React.RefObject<HTMLCanvasElement 
       renderer.start();
     }).catch((err) => {
       console.error('Renderer init failed:', err);
-      alert('WebGL not supported');
+      if (err.message.includes('WebGL not supported')) {
+        alert('WebGL not supported');
+      } else if (err.message.includes('Shader compile error') || err.message.includes('Program link error')) {
+        alert(`Shader Error: ${err.message}`);
+      } else {
+        alert(`Renderer Error: ${err.message}`);
+      }
     });
-
-    const onHot = () => {
-      void renderer.reloadShaders();
-    };
-    window.addEventListener('fractal-shader-hmr', onHot);
 
     return () => {
       cancelled = true;
-      window.removeEventListener('fractal-shader-hmr', onHot);
       renderer.dispose();
     };
-  }, [canvasRef, store]);
+  }, [canvasRef, store, shaderEpoch]);
 }

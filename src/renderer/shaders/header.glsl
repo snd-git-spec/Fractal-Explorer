@@ -33,3 +33,9 @@ mat3 mRotY(float a) {
   float c = cos(a), s = sin(a);
   return mat3(c, 0, s, 0, 1, 0, -s, 0, c);
 }
+
+// Orbit trap written by fractal SDEs during iteration (form-locked colour)
+float gOrbit = 1e5;
+
+// Forward declarations for fractal functions
+float sceneSDE(vec3 p);

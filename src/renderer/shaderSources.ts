@@ -1,6 +1,10 @@
 import type { FractalId } from '@/fractals/types';
 import { getFractalSlug } from '@/fractals/registry';
 
+import headerSrc from './shaders/header.glsl?raw';
+import footerSrc from './shaders/footer.glsl?raw';
+import vertexSrc from './shaders/vertex.glsl?raw';
+
 const fractalShaderLoaders: Record<string, () => Promise<{ default: string }>> = {
   mandelbulb: () => import('./shaders/fractals/mandelbulb.glsl?raw'),
   mandelbox: () => import('./shaders/fractals/mandelbox.glsl?raw'),
@@ -33,17 +37,12 @@ export async function loadShaderParts(fractalId: FractalId): Promise<{
   footer: string;
   vertex: string;
 }> {
-  const [headerMod, footerMod, vertexMod, body] = await Promise.all([
-    import('./shaders/header.glsl?raw'),
-    import('./shaders/footer.glsl?raw'),
-    import('./shaders/vertex.glsl?raw'),
-    loadFractalShaderSource(fractalId),
-  ]);
+  const body = await loadFractalShaderSource(fractalId);
   return {
-    header: headerMod.default,
+    header: headerSrc,
     body,
-    footer: footerMod.default,
-    vertex: vertexMod.default,
+    footer: footerSrc,
+    vertex: vertexSrc,
   };
 }
 
@@ -52,7 +51,14 @@ export function assembleFragmentShader(header: string, body: string, footer: str
 }
 
 if (import.meta.hot) {
-  import.meta.hot.accept(() => {
-    window.dispatchEvent(new Event('fractal-shader-hmr'));
-  });
+  import.meta.hot.accept(
+    [
+      './shaders/header.glsl?raw',
+      './shaders/footer.glsl?raw',
+      './shaders/vertex.glsl?raw',
+    ],
+    () => {
+      window.dispatchEvent(new Event('fractal-shader-hmr'));
+    },
+  );
 }

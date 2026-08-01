@@ -2,6 +2,9 @@
 float sdeMandelbox(vec3 pos, float scale, float minR2, float fold, int iters) {
   vec3 z = pos;
   float dr = 1.0;
+  // Smooth/fractional escape-iteration count — continuous even where the box/sphere
+  // folds make p and normals jump between neighbouring pixels.
+  float smoothI = float(iters);
 
   for (int i = 0; i < 28; i++) {
     if (i >= iters) break;
@@ -21,8 +24,13 @@ float sdeMandelbox(vec3 pos, float scale, float minR2, float fold, int iters) {
 
     z = scale * z + pos;
     dr = abs(scale) * dr + 1.0;
-    if (dot(z, z) > 100.0) break;
+    float r2b = dot(z, z);
+    if (r2b > 100.0) {
+      smoothI = float(i) - log2(max(log2(max(sqrt(r2b), 1.0001)), 0.0001));
+      break;
+    }
   }
+  gOrbit = clamp(smoothI / max(float(iters), 1.0), 0.0, 1.0);
 
   return 0.5 * (length(z) - abs(scale - 1.0)) / max(abs(dr), 0.0001);
 }

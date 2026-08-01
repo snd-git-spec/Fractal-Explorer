@@ -263,11 +263,15 @@ function morphDetail(
   fractalId: FractalId,
 ): number {
   const morph = getEvolveMorph(fractalId);
+  // Slowed + tempered on purpose: `iters` gets truncated to an int in every fractal's
+  // GLSL loop, so every time this float crosses an integer the whole surface (hit
+  // point, normal, AO, orbit trap) re-snaps. Fewer, slower crossings = far fewer jumps.
+  const slowP = morphP * 0.45;
   const wave =
-    Math.sin(morphP * 0.95) * beh.detailSwing +
-    Math.cos(morphP * 0.62 + 0.8) * beh.detailSwing * 0.6 +
-    Math.sin(morphP * 0.38 + 1.4) * beh.detailSwing * 0.35;
-  return clamp(iters + wave * beh.paramAmp * 0.72 * morph.detailMul, 4, 64);
+    Math.sin(slowP * 0.95) * beh.detailSwing +
+    Math.cos(slowP * 0.62 + 0.8) * beh.detailSwing * 0.6 +
+    Math.sin(slowP * 0.38 + 1.4) * beh.detailSwing * 0.35;
+  return clamp(iters + wave * beh.paramAmp * 0.32 * morph.detailMul, 4, 64);
 }
 
 function morphColor(tgt: CameraState, baseline: CameraState, p: number, beh: EvolveBehavior): void {

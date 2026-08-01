@@ -126,26 +126,27 @@ export function createRuntimeState(): ExplorerRuntimeState {
   };
 }
 
-export const PALETTE_COUNT = 8;
+export const PALETTE_COUNT = 9;
 
 /**
- * Colour profiles — 5-stop Hermite RGB paths in footer.glsl paletteAt.
- * Swatches = start / mid / end of each continuous journey (must match shader stops).
+ * Colour profiles — soft Gaussian RGB flows in footer.glsl paletteAt.
+ * Swatches = start / mid / end of each continuous journey.
  */
 export const PALETTES = [
-  { id: 0, name: 'Hyper Cyan', mood: 'Sci-fi', swatch: ['#00d4ff', '#a078ff', '#ff40d0'] },
-  { id: 1, name: 'Alien Acid', mood: 'Toxic', swatch: ['#c44dff', '#ff993f', '#a8ff2e'] },
-  { id: 2, name: 'Solar Flare', mood: 'Plasma', swatch: ['#ff1a00', '#ff991a', '#fff2b3'] },
-  { id: 3, name: 'Nebula Bleed', mood: 'Arty', swatch: ['#6b30ff', '#ff3d99', '#ffb040'] },
-  { id: 4, name: 'Aurora Drift', mood: 'Spectrum', swatch: ['#2eff8c', '#30e0ff', '#b040ff'] },
-  { id: 5, name: 'Prism Slash', mood: 'Hard', swatch: ['#00e8ff', '#ffe021', '#ff2040'] },
-  { id: 6, name: 'Void Orchid', mood: 'Lush', swatch: ['#d140ff', '#ff6090', '#ffbf30'] },
-  { id: 7, name: 'Ice Phantom', mood: 'Cold', swatch: ['#3061ff', '#90d1ff', '#ebe0ff'] },
+  { id: 0, name: 'Hyper Cyan', mood: 'Sci-fi', swatch: ['#0038ff', '#00f0ff', '#ff2ad4'] },
+  { id: 1, name: 'Alien Acid', mood: 'Toxic', swatch: ['#9b00ff', '#ff6a00', '#b8ff00'] },
+  { id: 2, name: 'Solar Flare', mood: 'Plasma', swatch: ['#4a0000', '#ff3a00', '#ffe566'] },
+  { id: 3, name: 'Nebula Bleed', mood: 'Arty', swatch: ['#1a0066', '#ff1490', '#ffd060'] },
+  { id: 4, name: 'Aurora Drift', mood: 'Spectrum', swatch: ['#00ff66', '#00d4ff', '#c040ff'] },
+  { id: 5, name: 'Prism Slash', mood: 'Hard', swatch: ['#00ffff', '#ffe000', '#ff0040'] },
+  { id: 6, name: 'Void Orchid', mood: 'Lush', swatch: ['#4a0080', '#ff40a0', '#ffcc20'] },
+  { id: 7, name: 'Ice Phantom', mood: 'Cold', swatch: ['#001a66', '#40b0ff', '#f0e8ff'] },
+  { id: 8, name: 'Full Spectrum', mood: 'All', swatch: ['#ff1f38', '#1eff59', '#9e26ff'] },
 ] as const;
 
 export const PALETTE_NAMES = PALETTES.map((p) => p.name);
 
-export type PaletteIdx = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
+export type PaletteIdx = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 
 export function clampPaletteIdx(n: number): PaletteIdx {
   const i = Math.floor(Number.isFinite(n) ? n : 0) % PALETTE_COUNT;
