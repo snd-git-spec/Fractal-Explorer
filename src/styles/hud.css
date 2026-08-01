@@ -1,0 +1,208 @@
+/* Ghost Instrument — quiet by default */
+:root {
+  --hud-ink: rgba(0, 255, 65, 0.95);
+  --hud-ink-bright: rgba(120, 255, 150, 1);
+  --hud-ink-active: rgba(200, 255, 210, 1);
+  --hud-ink-muted: rgba(0, 255, 65, 0.55);
+  --hud-ghost: 0.1;
+  --hud-ghost-mobile: 0.28;
+  --hud-glass: rgba(0, 8, 16, 0.45);
+  --hud-glass-soft: rgba(0, 8, 16, 0.62);
+  --hud-focus: rgba(0, 255, 65, 0.4);
+  --hud-border: rgba(0, 255, 65, 0.1);
+  --hud-border-strong: rgba(0, 255, 65, 0.22);
+  --hud-safe-top: env(safe-area-inset-top, 0px);
+  --hud-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --hud-safe-left: env(safe-area-inset-left, 0px);
+  --hud-safe-right: env(safe-area-inset-right, 0px);
+  --hud-rail-ease: 280ms;
+  --hud-touch-min: 40px;
+  --hud-text-shadow:
+    0 0 8px rgba(0, 0, 0, 0.85),
+    0 1px 2px rgba(0, 0, 0, 0.9),
+    0 0 1px rgba(0, 0, 0, 1);
+  --hud-text-shadow-active:
+    0 0 10px rgba(0, 0, 0, 0.9),
+    0 0 6px rgba(0, 255, 65, 0.35),
+    0 1px 2px rgba(0, 0, 0, 1);
+}
+
+/* Shared HUD type — fractal names, labels, actions, mode */
+.hud-fractal-list {
+  background: transparent;
+  border: none;
+}
+
+.hud-fractal-name,
+.hud-label,
+.hud-value,
+.hud-action,
+.hud-mode-btn {
+  font-family: 'Share Tech Mono', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--hud-ink);
+  text-shadow: var(--hud-text-shadow);
+  background: transparent;
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: color 150ms ease, background 150ms ease;
+}
+
+.hud-label,
+.hud-value {
+  cursor: default;
+}
+
+.hud-fractal-name:hover,
+.hud-fractal-name:focus-visible,
+.hud-action:hover,
+.hud-action:focus-visible,
+.hud-mode-btn:hover,
+.hud-mode-btn:focus-visible {
+  color: var(--hud-ink-bright);
+  background: rgba(0, 0, 0, 0.18);
+  outline: none;
+}
+
+.hud-fractal-name.is-active,
+.hud-action.is-on,
+.hud-mode-btn.is-active {
+  color: var(--hud-ink-active);
+  text-shadow: var(--hud-text-shadow-active);
+}
+
+.hud-action {
+  text-align: left;
+}
+
+.hud-action.is-rec {
+  color: rgba(255, 120, 120, 0.9);
+  text-shadow: var(--hud-text-shadow);
+}
+
+.hud-param {
+  margin-bottom: 10px;
+}
+
+.hud-param input[type='range'] {
+  width: 100%;
+  height: 2px;
+  margin-top: 4px;
+  background: rgba(0, 255, 65, 0.12);
+  border-radius: 1px;
+  appearance: none;
+  outline: none;
+}
+
+.hud-param input[type='range']::-webkit-slider-thumb {
+  appearance: none;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--hud-ink);
+  cursor: pointer;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
+}
+
+.hud-param input[type='range']::-moz-range-thumb {
+  width: 11px;
+  height: 11px;
+  border: none;
+  border-radius: 50%;
+  background: var(--hud-ink);
+  cursor: pointer;
+}
+
+.hud-param input[type='range']:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.hud-ghost-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  color: var(--hud-ink);
+  text-shadow: var(--hud-text-shadow);
+  font-family: 'Share Tech Mono', monospace;
+  text-transform: uppercase;
+  transition:
+    color 180ms ease,
+    border-color 180ms ease,
+    background 180ms ease,
+    opacity var(--hud-rail-ease) ease;
+}
+
+.hud-ghost-btn:hover,
+.hud-ghost-btn:focus-visible {
+  color: var(--hud-ink-bright);
+  border-color: rgba(0, 255, 65, 0.22);
+  background: rgba(0, 0, 0, 0.18);
+  outline: none;
+}
+
+.hud-capsule {
+  background: var(--hud-glass);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--hud-border);
+  border-radius: 4px;
+}
+
+.hud-sheet-glass {
+  background: rgba(0, 8, 16, 0.42);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid rgba(0, 255, 65, 0.1);
+  box-shadow: 0 -6px 28px rgba(0, 0, 0, 0.28);
+}
+
+.hud-rail {
+  transition:
+    opacity var(--hud-rail-ease) cubic-bezier(0.22, 1, 0.36, 1),
+    transform var(--hud-rail-ease) cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity;
+}
+
+.hud-rail-idle {
+  pointer-events: none;
+}
+
+.hud-rail-idle .hud-interactive {
+  pointer-events: auto;
+}
+
+.hud-dial-arc {
+  transition: stroke-dashoffset 60ms linear;
+}
+
+@keyframes hud-evolve-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+.hud-evolve-pulse {
+  animation: hud-evolve-pulse calc(var(--evolve-period, 1.8s)) ease-in-out infinite;
+}
+
+@keyframes hud-sheet-in {
+  from {
+    transform: translateY(12px);
+    opacity: 0.6;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.hud-sheet-enter {
+  animation: hud-sheet-in 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
