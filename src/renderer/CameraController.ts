@@ -1,4 +1,4 @@
-import type { ExplorerRuntimeState, ViewAnchor } from '@/fractals/types';
+import type { ExplorerRuntimeState } from '@/fractals/types';
 
 /** Touch: precision first — previous gains spun too fast on phones. */
 const TOUCH_BASE_YAW = 0.85;
@@ -7,9 +7,9 @@ const TOUCH_BASE_PITCH = 0.5;
 const MOUSE_BASE_YAW = 2.4;
 const MOUSE_BASE_PITCH = 1.25;
 const SPEED_REF = 3.2;
-const COAST_DECAY = 14;
-const COAST_MIN_SPEED = 0.18;
 const VEL_SMOOTH = 0.28;
+/** Suppress synthetic mouse events that follow touch on mobile. */
+const MOUSE_SUPPRESS_MS = 900;
 
 export class CameraController {
   private isDragging = false;
@@ -20,14 +20,13 @@ export class CameraController {
   private lastMoveTime = 0;
   private velYaw = 0;
   private velPitch = 0;
-  private coastRaf = 0;
-  private coastLastTime = 0;
-  private didMove = false;
+  /** Ignore mouse down/move/up until this time (after touch). */
+  private suppressMouseUntil = 0;
+  private inputKind: 'mouse' | 'touch' | null = null;
 
   constructor(
     private canvas: HTMLCanvasElement,
     private getState: () => ExplorerRuntimeState,
-    private onViewChange?: (view: Partial<ViewAnchor>) => void,
     private onGestureStart?: () => void,
     private onGestureEnd?: () => void,
   ) {}
@@ -40,6 +39,7 @@ export class CameraController {
     this.canvas.addEventListener('mousedown', this.onMouseDown);
     window.addEventListener('mouseup', this.onMouseUp);
     window.addEventListener('mousemove', this.onMouseMove);
+    window.addEventListener('blur', this.onForceEnd);
     this.canvas.addEventListener('wheel', this.onWheel, { passive: false });
     this.canvas.addEventListener('touchstart', this.onTouchStart, { passive: false });
     this.canvas.addEventListener('touchend', this.onTouchEnd, { passive: false });
@@ -48,10 +48,10 @@ export class CameraController {
   }
 
   detach(): void {
-    this.stopCoast();
     this.canvas.removeEventListener('mousedown', this.onMouseDown);
     window.removeEventListener('mouseup', this.onMouseUp);
     window.removeEventListener('mousemove', this.onMouseMove);
+    window.removeEventListener('blur', this.onForceEnd);
     this.canvas.removeEventListener('wheel', this.onWheel);
     this.canvas.removeEventListener('touchstart', this.onTouchStart);
     this.canvas.removeEventListener('touchend', this.onTouchEnd);
@@ -59,27 +59,22 @@ export class CameraController {
     this.canvas.removeEventListener('touchmove', this.onTouchMove);
   }
 
-  private beginGesture(): void {
-    this.stopCoast();
+  private beginGesture(kind: 'mouse' | 'touch'): void {
+    this.inputKind = kind;
     this.velYaw = 0;
     this.velPitch = 0;
-    this.didMove = false;
     this.onGestureStart?.();
   }
 
   private endGesture(): void {
-    // Commit framing once at the end — mid-drag setViewAnchor was reseeding
-    // the Auto Evolve orbit every pixel and fighting the pointer.
-    const s = this.getState().tgt;
-    this.onViewChange?.({
-      rotX: s.rotX,
-      rotY: s.rotY,
-      zoom: s.zoom,
-      panX: s.panX,
-      panY: s.panY,
-    });
+    this.inputKind = null;
+    this.isDragging = false;
     this.onGestureEnd?.();
   }
+
+  private onForceEnd = (): void => {
+    if (this.isDragging) this.endGesture();
+  };
 
   /** Write rotation to both cur and tgt so Auto Evolve lerp cannot lag the gesture. */
   private applyRot(dYaw: number, dPitch: number): void {
@@ -88,7 +83,6 @@ export class CameraController {
       s.rotY += dYaw;
       s.rotX = Math.max(-1.3, Math.min(1.3, s.rotX + dPitch));
     }
-    this.didMove = true;
   }
 
   private applyPan(dPanX: number, dPanY: number): void {
@@ -97,7 +91,6 @@ export class CameraController {
       s.panX += dPanX;
       s.panY += dPanY;
     }
-    this.didMove = true;
   }
 
   private applyZoom(nextZoom: number): void {
@@ -105,50 +98,6 @@ export class CameraController {
     const z = Math.max(1, Math.min(12, nextZoom));
     runtime.tgt.zoom = z;
     runtime.cur.zoom = z;
-    this.didMove = true;
-  }
-
-  private stopCoast(): void {
-    if (this.coastRaf) {
-      cancelAnimationFrame(this.coastRaf);
-      this.coastRaf = 0;
-    }
-  }
-
-  private startCoast(): void {
-    this.stopCoast();
-    const speed = Math.hypot(this.velYaw, this.velPitch);
-    if (speed < COAST_MIN_SPEED) {
-      this.velYaw = 0;
-      this.velPitch = 0;
-      return;
-    }
-    this.coastLastTime = performance.now();
-    const tick = (now: number): void => {
-      const dt = Math.min(0.05, (now - this.coastLastTime) / 1000);
-      this.coastLastTime = now;
-      const decay = Math.exp(-COAST_DECAY * dt);
-      this.velYaw *= decay;
-      this.velPitch *= decay;
-      if (Math.hypot(this.velYaw, this.velPitch) < COAST_MIN_SPEED) {
-        this.velYaw = 0;
-        this.velPitch = 0;
-        this.coastRaf = 0;
-        // Final commit after coast settles
-        const s = this.getState().tgt;
-        this.onViewChange?.({
-          rotX: s.rotX,
-          rotY: s.rotY,
-          zoom: s.zoom,
-          panX: s.panX,
-          panY: s.panY,
-        });
-        return;
-      }
-      this.applyRot(this.velYaw * dt, this.velPitch * dt);
-      this.coastRaf = requestAnimationFrame(tick);
-    };
-    this.coastRaf = requestAnimationFrame(tick);
   }
 
   private orbitFromDelta(
@@ -159,7 +108,6 @@ export class CameraController {
     basePitch: number,
   ): void {
     const speed = Math.hypot(dx, dy) / dt;
-    // Mild speed curve — slow stays precise; fast only modestly amplifies
     const speedGain = 0.7 + 0.55 * Math.min(1, speed / SPEED_REF);
     const dYaw = dx * baseYaw * speedGain;
     const dPitch = dy * basePitch * speedGain;
@@ -172,23 +120,24 @@ export class CameraController {
   }
 
   private onMouseDown = (e: MouseEvent): void => {
+    if (performance.now() < this.suppressMouseUntil) return;
     this.isDragging = true;
     this.isShift = e.shiftKey;
     this.lastMX = e.clientX;
     this.lastMY = e.clientY;
     this.lastMoveTime = performance.now();
-    this.beginGesture();
+    this.beginGesture('mouse');
   };
 
   private onMouseUp = (): void => {
-    if (!this.isDragging) return;
-    this.isDragging = false;
+    if (performance.now() < this.suppressMouseUntil) return;
+    if (!this.isDragging || this.inputKind === 'touch') return;
     this.endGesture();
-    if (!this.isShift && this.didMove) this.startCoast();
   };
 
   private onMouseMove = (e: MouseEvent): void => {
-    if (!this.isDragging) return;
+    if (performance.now() < this.suppressMouseUntil) return;
+    if (!this.isDragging || this.inputKind !== 'mouse') return;
     const now = performance.now();
     const dt = Math.max((now - this.lastMoveTime) / 1000, 1e-3);
     const dx = (e.clientX - this.lastMX) / window.innerWidth;
@@ -208,8 +157,12 @@ export class CameraController {
 
   private onWheel = (e: WheelEvent): void => {
     e.preventDefault();
-    // Wheel is a discrete nudge — treat as a short gesture so evolve doesn't yank zoom back
-    if (!this.isDragging) this.beginGesture();
+    if (this.isDragging) {
+      const s = this.getState().tgt;
+      this.applyZoom(s.zoom * (1 + e.deltaY * 0.001));
+      return;
+    }
+    this.beginGesture('mouse');
     const s = this.getState().tgt;
     this.applyZoom(s.zoom * (1 + e.deltaY * 0.001));
     this.endGesture();
@@ -217,11 +170,12 @@ export class CameraController {
 
   private onTouchStart = (e: TouchEvent): void => {
     e.preventDefault();
+    this.suppressMouseUntil = performance.now() + MOUSE_SUPPRESS_MS;
     this.isDragging = true;
     this.lastMX = e.touches[0].clientX;
     this.lastMY = e.touches[0].clientY;
     this.lastMoveTime = performance.now();
-    this.beginGesture();
+    this.beginGesture('touch');
     if (e.touches.length >= 2) {
       this.lastTD = Math.hypot(
         e.touches[0].clientX - e.touches[1].clientX,
@@ -231,16 +185,10 @@ export class CameraController {
   };
 
   private onTouchEnd = (e: TouchEvent): void => {
+    this.suppressMouseUntil = performance.now() + MOUSE_SUPPRESS_MS;
     if (e.touches.length === 0) {
       if (!this.isDragging) return;
-      this.isDragging = false;
       this.endGesture();
-      // Very mild coast only — phones already felt like they spun away
-      if (this.didMove && Math.hypot(this.velYaw, this.velPitch) > COAST_MIN_SPEED * 1.5) {
-        this.velYaw *= 0.45;
-        this.velPitch *= 0.45;
-        this.startCoast();
-      }
     } else {
       this.lastMX = e.touches[0].clientX;
       this.lastMY = e.touches[0].clientY;
@@ -256,6 +204,7 @@ export class CameraController {
 
   private onTouchMove = (e: TouchEvent): void => {
     e.preventDefault();
+    this.suppressMouseUntil = performance.now() + MOUSE_SUPPRESS_MS;
     if (e.touches.length >= 2) {
       this.velYaw = 0;
       this.velPitch = 0;

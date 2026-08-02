@@ -8,8 +8,8 @@ const SNAPSHOT_LERP = 0.12;
  * Time constants for frame-rate-independent exponential lerp during auto-evolve.
  * k = 1 - exp(-dt / TAU)  — same perceived speed at any frame rate.
  */
-// Smooth follow — snappy enough that orbit and morph read as live motion.
-const ROT_TAU   = 3.5;  // seconds — camera tracks orbit path
+// Keep this short — a long tau makes post-drag resume look frozen while lag rebuilds.
+const ROT_TAU   = 1.1;  // seconds — camera tracks orbit path
 const PARAM_TAU = 1.8;  // seconds — shape morph catches up
 const COLOR_TAU = 4.5;  // seconds — hue eases slowly (avoid rapid flashing)
 const PAN_TAU   = 0.9;  // seconds — pan snaps back to centre
@@ -27,9 +27,11 @@ export function lerpCameraState(
   dt: number,
   snapshotBoost = false,
   autoEvolve = false,
+  /** Optional shorter rotation tau (e.g. post-gesture resume). */
+  rotTau = ROT_TAU,
 ): void {
   if (autoEvolve) {
-    const rotK   = 1 - Math.exp(-dt / ROT_TAU);
+    const rotK   = 1 - Math.exp(-dt / Math.max(0.15, rotTau));
     const paramK = 1 - Math.exp(-dt / PARAM_TAU);
     const colorK = 1 - Math.exp(-dt / COLOR_TAU);
     const panK   = 1 - Math.exp(-dt / PAN_TAU);   // pan snaps to centre fast

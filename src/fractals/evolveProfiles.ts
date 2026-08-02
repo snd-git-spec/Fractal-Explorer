@@ -20,6 +20,8 @@ export interface EvolveContext {
   paletteIdx: PaletteIdx;
   iters: number;
   fractalId: FractalId;
+  /** When true, morph continues but satellite camera is left alone. */
+  holdView?: boolean;
 }
 
 export interface EvolveResult {
@@ -46,10 +48,10 @@ const MORPH_FREQ2 = 1.05;
  */
 const GOLDEN = 0.6180339887;
 const ORBIT = {
-  azMin: 0.0045,
-  azMax: 0.0095,
-  zoomMin: 0.00035,
-  zoomMax: 0.0009,
+  azMin: 0.012,
+  azMax: 0.028,
+  zoomMin: 0.0008,
+  zoomMax: 0.0022,
 } as const;
 
 interface EvolveBehavior {
@@ -306,11 +308,14 @@ export function updateEvolveTargets(ctx: EvolveContext): EvolveResult {
   computeSmoothOrbit(orbit, orbitP, beh, fractalId);
 
   // Azimuth-led satellite: yaw orbits, pitch nods around snapshot/preset framing
-  tgt.rotY = baseline.rotY + orbit.rotY;
-  tgt.rotX = clamp(baseline.rotX + orbit.rotX, -1.25, 1.25);
-  tgt.zoom = clamp(baseline.zoom + orbit.zoom, 1, 12);
-  tgt.panX = 0;
-  tgt.panY = 0;
+  // When the user is aiming, leave rot/zoom/pan alone — morph still runs.
+  if (!ctx.holdView) {
+    tgt.rotY = baseline.rotY + orbit.rotY;
+    tgt.rotX = clamp(baseline.rotX + orbit.rotX, -1.25, 1.25);
+    tgt.zoom = clamp(baseline.zoom + orbit.zoom, 1, 12);
+    tgt.panX = 0;
+    tgt.panY = 0;
+  }
 
   morphFractalShape(tgt, baseline, morphP, beh, fractalId);
   morphColor(tgt, baseline, p, beh);

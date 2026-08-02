@@ -42,15 +42,16 @@ export class FractalRenderer {
   private prevAutoEvolve = false;
   /** Monotonic content clock (seconds). */
   private simTime = 0;
-  /** True while pointer/touch is actively driving the camera. */
-  private cameraGesturing = false;
-  /** After gesture ends, keep satellite camera frozen until this time (ms). */
-  private cameraHoldUntil = 0;
+  /** performance.now() until which rotation follow uses a shorter tau (post-drag). */
+  private orbitResumeBoostUntil = 0;
 
   /** Time constant for atmosphere / palette lerp (seconds). */
   private static readonly ATM_TAU = 2.0;
-  /** Brief pause after release before satellite orbit resumes from the new framing. */
-  private static readonly CAMERA_HOLD_MS = 1400;
+  /** After release, follow the orbit target more tightly so motion is obvious. */
+  private static readonly ORBIT_RESUME_BOOST_MS = 2200;
+  private static readonly ORBIT_RESUME_TAU = 0.28;
+  /** Warm-start orbit phase so tgt is already off the anchor and chase is visible. */
+  private static readonly ORBIT_RESUME_PHASE = 1.6;
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -85,23 +86,47 @@ export class FractalRenderer {
     this.camera = new CameraController(
       this.canvas,
       () => this.store.getState().runtime,
-      (view) => this.store.getState().setViewAnchor(view),
+      undefined,
       () => {
-        this.cameraGesturing = true;
-      },
-      () => {
-        this.cameraGesturing = false;
-        this.cameraHoldUntil = performance.now() + FractalRenderer.CAMERA_HOLD_MS;
-        // Satellite path restarts from the framing the user just set
-        const cur = this.store.getState().runtime.cur;
-        this.store.getState().setViewAnchor({
+        // Hard resume: reseed satellite orbit from the pose the user left.
+        const state = this.store.getState();
+        const cur = state.runtime.cur;
+        state.setViewAnchor({
           rotX: cur.rotX,
           rotY: cur.rotY,
           zoom: cur.zoom,
-          panX: cur.panX,
-          panY: cur.panY,
+          panX: 0,
+          panY: 0,
         });
-        this.store.getState().runtime.orbitPhase = 0;
+        cur.panX = 0;
+        cur.panY = 0;
+        state.runtime.orbitPhase = FractalRenderer.ORBIT_RESUME_PHASE;
+        // Apply orbit onto tgt immediately so the follow lerp has a delta now,
+        // not one frame later — avoids a post-drag dead stop.
+        if (state.autoEvolve) {
+          updateEvolveTargets({
+            tgt: state.runtime.tgt,
+            baseline: state.getMacroBaseline(),
+            atmosphereBaseline: state.getAtmosphereBaseline(),
+            orbit: state.runtime.orbit,
+            evolvePhase: state.runtime.evolvePhase,
+            morphPhase: state.runtime.morphPhase,
+            orbitPhase: state.runtime.orbitPhase,
+            dt: 0,
+            evolveSpeed: state.evolveSpeed,
+            paletteIdx: state.paletteIdx,
+            iters: state.iters,
+            fractalId: state.fractalId,
+          });
+        } else {
+          state.runtime.tgt.rotX = cur.rotX;
+          state.runtime.tgt.rotY = cur.rotY;
+          state.runtime.tgt.zoom = cur.zoom;
+          state.runtime.tgt.panX = 0;
+          state.runtime.tgt.panY = 0;
+        }
+        this.orbitResumeBoostUntil =
+          performance.now() + FractalRenderer.ORBIT_RESUME_BOOST_MS;
       },
     );
     this.camera.attach();
@@ -195,20 +220,7 @@ export class FractalRenderer {
     let renderIters = state.iters;
 
     if (evolveDt > 0 && state.autoEvolve) {
-      const holdCamera =
-        this.cameraGesturing ||
-        this.camera?.isGesturing() ||
-        performance.now() < this.cameraHoldUntil;
-      const savedCam = holdCamera
-        ? {
-            rotX: state.runtime.tgt.rotX,
-            rotY: state.runtime.tgt.rotY,
-            zoom: state.runtime.tgt.zoom,
-            panX: state.runtime.tgt.panX,
-            panY: state.runtime.tgt.panY,
-          }
-        : null;
-      const savedOrbitPhase = holdCamera ? state.runtime.orbitPhase : null;
+      const gesturing = !!this.camera?.isGesturing();
 
       const evolved = updateEvolveTargets({
         tgt: state.runtime.tgt,
@@ -223,22 +235,12 @@ export class FractalRenderer {
         paletteIdx: state.paletteIdx,
         iters: state.iters,
         fractalId,
+        holdView: gesturing,
       });
       state.runtime.evolvePhase = evolved.phase;
       state.runtime.morphPhase = evolved.morphPhase;
-      if (savedOrbitPhase !== null) {
-        // Freeze satellite progress while the user aims — resume from 0 after hold
-        state.runtime.orbitPhase = savedOrbitPhase;
-      } else {
-        state.runtime.orbitPhase = evolved.orbitPhase;
-      }
-      if (savedCam) {
-        Object.assign(state.runtime.tgt, savedCam);
-        // Keep displayed camera locked to the gesture while dragging
-        if (this.cameraGesturing || this.camera?.isGesturing()) {
-          Object.assign(state.runtime.cur, savedCam);
-        }
-      }
+      state.runtime.orbitPhase = evolved.orbitPhase;
+
       renderAtmosphere = evolved.atmosphere;
       renderPalette = evolved.paletteIdx;
       renderIters = evolved.iters;
@@ -266,7 +268,17 @@ export class FractalRenderer {
     }
 
     if (evolveDt > 0) {
-      lerpCameraState(state.runtime, evolveDt, state.snapshotLerpBoost, state.autoEvolve);
+      const rotTau =
+        state.autoEvolve && performance.now() < this.orbitResumeBoostUntil
+          ? FractalRenderer.ORBIT_RESUME_TAU
+          : undefined;
+      lerpCameraState(
+        state.runtime,
+        evolveDt,
+        state.snapshotLerpBoost,
+        state.autoEvolve,
+        rotTau,
+      );
     }
 
     const { cur } = state.runtime;
