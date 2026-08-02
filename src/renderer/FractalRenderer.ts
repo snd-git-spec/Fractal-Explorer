@@ -42,9 +42,15 @@ export class FractalRenderer {
   private prevAutoEvolve = false;
   /** Monotonic content clock (seconds). */
   private simTime = 0;
+  /** True while pointer/touch is actively driving the camera. */
+  private cameraGesturing = false;
+  /** After gesture ends, keep satellite camera frozen until this time (ms). */
+  private cameraHoldUntil = 0;
 
   /** Time constant for atmosphere / palette lerp (seconds). */
   private static readonly ATM_TAU = 2.0;
+  /** Brief pause after release before satellite orbit resumes from the new framing. */
+  private static readonly CAMERA_HOLD_MS = 1400;
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -80,6 +86,23 @@ export class FractalRenderer {
       this.canvas,
       () => this.store.getState().runtime,
       (view) => this.store.getState().setViewAnchor(view),
+      () => {
+        this.cameraGesturing = true;
+      },
+      () => {
+        this.cameraGesturing = false;
+        this.cameraHoldUntil = performance.now() + FractalRenderer.CAMERA_HOLD_MS;
+        // Satellite path restarts from the framing the user just set
+        const cur = this.store.getState().runtime.cur;
+        this.store.getState().setViewAnchor({
+          rotX: cur.rotX,
+          rotY: cur.rotY,
+          zoom: cur.zoom,
+          panX: cur.panX,
+          panY: cur.panY,
+        });
+        this.store.getState().runtime.orbitPhase = 0;
+      },
     );
     this.camera.attach();
 
@@ -172,6 +195,21 @@ export class FractalRenderer {
     let renderIters = state.iters;
 
     if (evolveDt > 0 && state.autoEvolve) {
+      const holdCamera =
+        this.cameraGesturing ||
+        this.camera?.isGesturing() ||
+        performance.now() < this.cameraHoldUntil;
+      const savedCam = holdCamera
+        ? {
+            rotX: state.runtime.tgt.rotX,
+            rotY: state.runtime.tgt.rotY,
+            zoom: state.runtime.tgt.zoom,
+            panX: state.runtime.tgt.panX,
+            panY: state.runtime.tgt.panY,
+          }
+        : null;
+      const savedOrbitPhase = holdCamera ? state.runtime.orbitPhase : null;
+
       const evolved = updateEvolveTargets({
         tgt: state.runtime.tgt,
         baseline: state.getMacroBaseline(),
@@ -188,7 +226,19 @@ export class FractalRenderer {
       });
       state.runtime.evolvePhase = evolved.phase;
       state.runtime.morphPhase = evolved.morphPhase;
-      state.runtime.orbitPhase = evolved.orbitPhase;
+      if (savedOrbitPhase !== null) {
+        // Freeze satellite progress while the user aims — resume from 0 after hold
+        state.runtime.orbitPhase = savedOrbitPhase;
+      } else {
+        state.runtime.orbitPhase = evolved.orbitPhase;
+      }
+      if (savedCam) {
+        Object.assign(state.runtime.tgt, savedCam);
+        // Keep displayed camera locked to the gesture while dragging
+        if (this.cameraGesturing || this.camera?.isGesturing()) {
+          Object.assign(state.runtime.cur, savedCam);
+        }
+      }
       renderAtmosphere = evolved.atmosphere;
       renderPalette = evolved.paletteIdx;
       renderIters = evolved.iters;
