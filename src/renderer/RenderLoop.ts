@@ -1,6 +1,7 @@
 import type { ExplorerRuntimeState } from '@/fractals/types';
 
-const LERP = 0.055;
+// Manual follow — snappy enough that mouse/touch orbit does not feel lagged behind the pointer.
+const LERP = 0.22;
 const SNAPSHOT_LERP = 0.12;
 
 /**

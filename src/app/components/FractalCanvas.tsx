@@ -14,7 +14,7 @@ export function FractalCanvas() {
   return (
     <canvas
       ref={canvasRef}
-      className="fixed inset-0 w-full h-full cursor-grab active:cursor-grabbing"
+      className="fixed inset-0 w-full h-full touch-none cursor-grab active:cursor-grabbing"
     />
   );
 }
