@@ -140,9 +140,9 @@ function sphereRates(
   const dense = DENSE_ORBIT_IDS.has(fractalId);
   const d = seeds.azDir || 1;
 
-  // ~20–35s per full yaw turn at pace=1
+  // ~2–3 min per full yaw turn at pace=1
   const spinBase =
-    lerp(0.2, 0.32, i) * (0.85 + 0.25 * seeds.azRateScale);
+    lerp(0.035, 0.055, i) * (0.85 + 0.25 * seeds.azRateScale);
   const spin =
     spinBase *
     d *
@@ -150,11 +150,11 @@ function sphereRates(
       0.2 * Math.sin(pathTime * 0.11 + seeds.azOffset) +
       0.12 * Math.sin(pathTime * 0.07 * GOLDEN + seeds.zoomPhase));
 
-  // ~15–25s equator→pole→equator (half-period π / elOmega)
+  // ~1.5–2.5 min equator→pole→equator (half-period π / elOmega)
   const elOmega =
-    lerp(0.14, 0.22, i) * (0.85 + 0.3 * seeds.elRateScale);
+    lerp(0.022, 0.036, i) * (0.85 + 0.3 * seeds.elRateScale);
 
-  const zoomOmega = lerp(0.06, 0.1, i);
+  const zoomOmega = lerp(0.01, 0.016, i);
   const zoomAmp = (dense ? 0.028 : 0.04) + i * 0.025;
 
   return { spin, elOmega, zoomOmega, zoomAmp };
