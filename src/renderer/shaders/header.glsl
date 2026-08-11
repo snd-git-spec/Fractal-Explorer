@@ -22,7 +22,7 @@ uniform float u_maxSteps;
 
 #define MAX_STEPS 160
 #define MAX_DIST  24.0
-#define MIN_DIST  0.0005
+#define MIN_DIST  0.00012
 
 mat3 mRotX(float a) {
   float c = cos(a), s = sin(a);

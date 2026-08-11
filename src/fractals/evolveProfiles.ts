@@ -4,6 +4,7 @@ import type {
   CameraState,
   PaletteIdx,
 } from './types';
+import { ZOOM_MIN } from './types';
 import { getEvolveMorph } from './evolveMorph';
 import type { FractalId } from './types';
 
@@ -33,9 +34,6 @@ export interface EvolveResult {
   iters: number;
 }
 
-/** Fractals that must keep geometry on-screen (no long black / empty stretches). */
-const PRESENCE_IDS: ReadonlySet<FractalId> = new Set<FractalId>([1, 5, 7, 14, 15, 16, 17]);
-
 /** Fractals whose detail fills the frame so the same yaw rate reads as a blur. */
 const DENSE_ORBIT_IDS: ReadonlySet<FractalId> = new Set<FractalId>([
   4, // Apollonian
@@ -45,15 +43,6 @@ const DENSE_ORBIT_IDS: ReadonlySet<FractalId> = new Set<FractalId>([
   12, // Kleinian
   14, // Kali
 ]);
-
-function wantsPresence(id: FractalId): boolean {
-  return PRESENCE_IDS.has(id);
-}
-
-/** Full-sphere satellite tours — every fractal uses the global path. */
-function wantsGlobalRoute(_id: FractalId): boolean {
-  return true;
-}
 
 /** Keep screen-space motion calm: closer zoom + dense packings need slower turns. */
 function orbitPace(fractalId: FractalId, zoom: number): number {
@@ -71,17 +60,12 @@ const MORPH_FREQ = 1.85;
 const MORPH_FREQ2 = 1.05;
 
 /**
- * Quasi-random satellite path — multi-harmonic yaw/pitch/zoom so the
- * global path never feels like a fixed circle.
+ * Free sphere orbit: slow continuous yaw spin + quasi-random latitude covering N↔S.
  */
 const GOLDEN = 0.6180339887;
-const ORBIT = {
-  // Calm satellite drift — was 0.14–0.26 and spun too fast to read form
-  azMin: 0.055,
-  azMax: 0.1,
-  zoomMin: 0.0015,
-  zoomMax: 0.0035,
-} as const;
+
+/** Pitch clamp — true poles for the free sphere tour. */
+const POLE_MAX = 1.25;
 
 interface EvolveBehavior {
   intensity: number;
@@ -131,105 +115,71 @@ function resolveEvolveBehavior(phase: number): EvolveBehavior {
   return lerpBehavior(EVOLVE_CYCLE[idx], EVOLVE_CYCLE[nextIdx], t);
 }
 
-function sampleOrbitPose(
+/** Drive for a free spherical tour — spin rate, wandering pole-to-pole pitch, zoom breathe. */
+function sampleSphereDrive(
   elapsed: number,
   seeds: CameraOrbit['seeds'],
   beh: EvolveBehavior,
   fractalId: FractalId,
-): { rotX: number; rotY: number; zoom: number; azimuth: number } {
+): { spinRate: number; elTarget: number; zoom: number } {
   const i = beh.intensity;
-  const global = wantsGlobalRoute(fractalId);
-  const presence = wantsPresence(fractalId) && !global;
-  // pace is applied via elapsed by the caller; keep a mild local trim for dense sets
   const dense = DENSE_ORBIT_IDS.has(fractalId);
-  const rateMul = fractalId === 15 ? 0.38 : dense ? 0.4 : 1;
-
-  // Slow global drift — full-sphere path, readable on every fractal
-  const azSpeed =
-    (global
-      ? lerp(0.022, 0.038, i) * (0.85 + 0.25 * seeds.azRateScale)
-      : lerp(ORBIT.azMin, ORBIT.azMax, i) * seeds.azRateScale) * rateMul;
-  const elSpeed =
-    (global
-      ? lerp(0.016, 0.028, i) * (0.85 + 0.25 * seeds.elRateScale)
-      : lerp(0.045, 0.085, i) * (0.85 + 0.4 * seeds.elRateScale)) * rateMul;
-  const zoomSpeed =
-    (global ? lerp(0.0006, 0.0012, i) : lerp(ORBIT.zoomMin, ORBIT.zoomMax, i)) * rateMul;
-
-  const yp = elapsed * azSpeed + seeds.azOffset;
-  const ep = elapsed * elSpeed + seeds.elPhase;
+  const rateMul = fractalId === 15 ? 0.38 : dense ? 0.42 : 1;
   const d = seeds.azDir || 1;
 
-  // Modest amplitudes — tour the sphere without whipping
-  const yawAmp = global ? (dense ? 0.38 : 0.58) : presence ? 0.72 : 0.9;
-  const rotY =
-    Math.sin(yp * 0.26) * 1.75 * yawAmp * d +
-    Math.sin(yp * 0.39 + seeds.zoomPhase) * 1.1 * yawAmp +
-    Math.sin(yp * GOLDEN + seeds.elPhase) * 0.75 * yawAmp * d +
-    Math.cos(yp * 0.15 + 1.1) * 0.55 * yawAmp +
-    Math.sin(yp * 0.48 + seeds.azOffset * 0.5) * 0.35 * yawAmp +
-    Math.sin(yp * 0.7 + 2.3) * 0.2 * yawAmp * d;
+  // Slow top-spin (rad per orbit-phase unit), lightly modulated so it never feels motorized
+  const spinBase =
+    lerp(0.2, 0.36, i) * (0.85 + 0.3 * seeds.azRateScale) * rateMul * (dense ? 0.55 : 1);
+  const spinRate =
+    spinBase *
+    d *
+    (1.0 +
+      0.22 * Math.sin(elapsed * 0.06 + seeds.azOffset) +
+      0.12 * Math.sin(elapsed * 0.11 * GOLDEN + seeds.zoomPhase));
 
-  const pole = global
-    ? dense
-      ? 0.7
-      : 0.95
-    : fractalId === 5
-      ? 0.55
-      : presence
-        ? 0.58
-        : 0.72;
-  const rotX = global
-    ? Math.sin(ep) * pole + Math.sin(ep * GOLDEN + seeds.zoomPhase) * 0.05
-    : Math.sin(ep) * pole * 0.62 +
-      Math.sin(ep * GOLDEN + 1.2) * pole * 0.38 +
-      Math.cos(ep * 0.41 + 0.6) * pole * 0.28 +
-      Math.sin(ep * 1.73 + seeds.zoomPhase) * pole * 0.16 +
-      Math.sin(ep * 0.22 + seeds.elPhase) * pole * 0.2;
+  // Quasi-random latitude covering full sphere (incommensurate freqs → dense free path)
+  const elSpeed =
+    lerp(0.018, 0.032, i) * (0.8 + 0.35 * seeds.elRateScale) * rateMul;
+  const ep = elapsed * elSpeed + seeds.elPhase;
+  const elTarget = clamp(
+    Math.sin(ep) * 0.95 +
+      Math.sin(ep * GOLDEN + seeds.zoomPhase) * 0.42 +
+      Math.sin(ep * 0.37 + seeds.azOffset) * 0.28 +
+      Math.cos(ep * 1.41 + seeds.elPhase * 0.5) * 0.18 +
+      Math.sin(ep * 0.19 + 2.1) * 0.12,
+    -POLE_MAX,
+    POLE_MAX,
+  );
 
-  const zoomAmp = global
-    ? 0.045 + i * 0.04
-    : presence
-      ? 0.025 + i * 0.035
-      : 0.06 + i * 0.1;
+  const zoomSpeed = lerp(0.0006, 0.0012, i) * rateMul;
+  const zoomAmp = (dense ? 0.035 : 0.05) + i * 0.035;
   const zt = elapsed * zoomSpeed + seeds.zoomPhase;
-  const bias = global ? 0 : presence ? -zoomAmp * 0.9 : -zoomAmp * 0.55;
-  const zoom = global
-    ? Math.sin(zt) * zoomAmp * 0.35 +
-      Math.sin(zt * seeds.zoomFreqA * 22.0 + 0.9) * zoomAmp * 0.18
-    : bias +
-      Math.sin(zt) * zoomAmp * 0.3 +
-      Math.sin(zt * seeds.zoomFreqA * 40.0 + 0.9) * zoomAmp * 0.18 +
-      Math.cos(zt * seeds.zoomFreqB * 55.0 + 1.5) * zoomAmp * 0.1 +
-      Math.sin(zt * seeds.zoomFreqC * 70.0 + 2.1) * zoomAmp * 0.07;
+  const zoom =
+    Math.sin(zt) * zoomAmp * 0.35 +
+    Math.sin(zt * seeds.zoomFreqA * 22.0 + 0.9) * zoomAmp * 0.2 +
+    Math.cos(zt * seeds.zoomFreqB * 35.0 + 1.4) * zoomAmp * 0.12;
 
-  return { rotX, rotY, zoom, azimuth: rotY };
+  return { spinRate, elTarget, zoom };
 }
 
-function computeSmoothOrbit(
+function advanceFreeSphereOrbit(
   orbit: CameraOrbit,
   elapsed: number,
+  dt: number,
   beh: EvolveBehavior,
   fractalId: FractalId,
 ): void {
-  const now = sampleOrbitPose(elapsed, orbit.seeds, beh, fractalId);
-  const zero = sampleOrbitPose(0, orbit.seeds, beh, fractalId);
+  const drive = sampleSphereDrive(elapsed, orbit.seeds, beh, fractalId);
 
-  if (wantsGlobalRoute(fractalId)) {
-    // Absolute orientation so sin(ep) truly hits world N/S (delta-from-t0 skipped poles)
-    orbit.rotY = now.rotY;
-    orbit.rotX = now.rotX;
-    orbit.zoom = now.zoom - zero.zoom;
-    orbit.azimuth = now.azimuth;
-    orbit.panX = 0;
-    orbit.panY = 0;
-    return;
-  }
+  // Accumulate yaw spin (continuous) — azimuth is the free longitude
+  orbit.azimuth += dt * drive.spinRate;
 
-  orbit.azimuth = now.azimuth - zero.azimuth;
-  orbit.rotY = now.rotY - zero.rotY;
-  orbit.rotX = now.rotX - zero.rotX;
-  orbit.zoom = now.zoom - zero.zoom;
+  // Soft-chase wandering latitude so N↔S is free but never snappy
+  const elK = 1 - Math.exp(-dt / 2.2);
+  orbit.rotX += (drive.elTarget - orbit.rotX) * elK;
+
+  orbit.rotY = orbit.azimuth;
+  orbit.zoom = drive.zoom;
   orbit.panX = 0;
   orbit.panY = 0;
 }
@@ -295,13 +245,6 @@ function morphFractalShape(
   // In-band morphs: stay inside the live param band so form keeps moving
   // (generic high mul + clamps = rush to extreme, then stall).
   if (fractalId === 0 || fractalId === 5) {
-    const amp = 0.62 + 0.38 * a;
-    const s1 = Math.sin(morphP * 0.62);
-    const s2 = Math.sin(morphP * 0.41 + 1.15);
-    const s3 = Math.sin(morphP * 0.27 + 2.35);
-    const s4 = Math.cos(morphP * 0.49 + 0.8);
-    const s5 = Math.sin(morphP * 0.19 + 3.1);
-
     if (fractalId === 0) {
       // Absolute band crawl — always moving through lobe powers (no baseline linger).
       // Incommensurate rates so the sum rarely flatlines.
@@ -338,34 +281,36 @@ function morphFractalShape(
       return;
     }
 
-    // Dodeca: classic IFS bloom + stretch centre
-    const ampD = 0.85 + 0.15 * a;
-    const ph = morphP * 1.1;
+    // Dodeca: morph the solid — recursion + spin/stretch of the 20-vertex cloud
+    const ampD = 0.88 + 0.12 * a;
+    const ph = morphP * 1.25;
     tgt.power = clamp(
       8.0 +
-        Math.sin(ph) * 3.4 * ampD +
-        Math.sin(ph * 0.55 + 1.0) * 1.6 * ampD,
-      5.0,
-      12.5,
+        Math.sin(ph) * 4.0 * ampD +
+        Math.sin(ph * 0.55 + 1.05) * 2.0 * ampD,
+      4.5,
+      13.5,
     );
     tgt.bailout = clamp(
-      2.8 +
-        Math.sin(ph * 0.65 + 0.4) * 1.05 * ampD +
-        Math.cos(ph * 0.95 + 1.4) * 0.55 * ampD,
+      2.9 +
+        Math.sin(ph * 0.62 + 0.4) * 1.2 * ampD +
+        Math.cos(ph * 0.95 + 1.4) * 0.65 * ampD,
       1.6,
-      4.5,
+      4.8,
     );
     tgt.cx = clamp(
-      Math.sin(ph * 0.42 + 0.1) * 0.8 * ampD +
-        Math.cos(ph * 0.78 + 1.4) * 0.42 * ampD,
-      -1.0,
-      1.0,
+      Math.sin(ph * 0.38 + 0.12) * 1.05 * ampD +
+        Math.cos(ph * 0.72 + 1.35) * 0.55 * ampD +
+        Math.sin(ph * 1.15 + 2.4) * 0.35 * ampD,
+      -1.15,
+      1.15,
     );
     tgt.cy = clamp(
-      Math.sin(ph * 0.38 + 1.9) * 0.75 * ampD +
-        Math.sin(ph * 0.8 + 0.5) * 0.4 * ampD,
-      -1.0,
-      1.0,
+      Math.sin(ph * 0.34 + 1.95) * 1.0 * ampD +
+        Math.sin(ph * 0.78 + 0.55) * 0.55 * ampD +
+        Math.cos(ph * 1.08 + 1.7) * 0.35 * ampD,
+      -1.15,
+      1.15,
     );
     return;
   }
@@ -473,37 +418,24 @@ export function updateEvolveTargets(ctx: EvolveContext): EvolveResult {
   const speedScale = spd / 0.3;
   const p      = ctx.evolvePhase + dt * spd * PHASE_RATE;
   const morphP = ctx.morphPhase  + dt * morph.morphRate * speedScale;
-  // Camera clock — deliberately slow so form stays readable while touring
-  const orbitRate = 0.28 * orbitPace(fractalId, baseline.zoom);
-  const orbitP = ctx.orbitPhase + dt * speedScale * orbitRate;
   const beh = resolveEvolveBehavior(p);
 
-  computeSmoothOrbit(orbit, orbitP, beh, fractalId);
+  // Freeze the orbit clock while the user aims — otherwise offsets drift under the gesture
+  // and release math cannot absorb a stable pose.
+  const orbitRate = 0.28 * orbitPace(fractalId, baseline.zoom);
+  const orbitP = ctx.holdView
+    ? ctx.orbitPhase
+    : ctx.orbitPhase + dt * speedScale * orbitRate;
 
-  // Azimuth-led satellite: yaw orbits, pitch nods around snapshot/preset framing
-  // When the user is aiming, leave rot/zoom/pan alone — morph still runs.
   if (!ctx.holdView) {
-    if (wantsGlobalRoute(fractalId)) {
-      // Absolute spherical tour — rotX hits ±1.25 (true N/S) each elevation cycle
-      tgt.rotY = orbit.rotY;
-      tgt.rotX = clamp(orbit.rotX, -1.28, 1.28);
-      // Locked near the zoom floor — default framing is fully immersed
-      const zMin = 0.2;
-      const zMax = Math.max(zMin + 0.04, baseline.zoom * 1.15);
-      tgt.zoom = clamp(baseline.zoom + orbit.zoom, zMin, zMax);
-    } else {
-      tgt.rotY = baseline.rotY + orbit.rotY;
-      tgt.rotX = clamp(baseline.rotX + orbit.rotX, -1.35, 1.35);
-      if (wantsPresence(fractalId)) {
-        const tight = fractalId === 5;
-        const zMin = Math.max(0.2, baseline.zoom * (tight ? 0.75 : 0.55));
-        const zMax = Math.max(zMin + 0.05, baseline.zoom * (tight ? 1.25 : 1.08));
-        tgt.zoom = clamp(baseline.zoom + orbit.zoom, zMin, zMax);
-        tgt.rotX = clamp(tgt.rotX, tight ? -0.95 : -1.05, tight ? 0.95 : 1.05);
-      } else {
-        tgt.zoom = clamp(baseline.zoom + orbit.zoom, 0.2, 12);
-      }
-    }
+    // Free sphere: yaw keeps spinning; pitch wanders quasi-randomly pole-to-pole
+    advanceFreeSphereOrbit(orbit, orbitP, dt * speedScale, beh, fractalId);
+
+    tgt.rotY = baseline.rotY + orbit.azimuth;
+    tgt.rotX = clamp(orbit.rotX, -POLE_MAX, POLE_MAX);
+    const zMin = ZOOM_MIN;
+    const zMax = Math.max(zMin + 0.04, baseline.zoom * 1.15);
+    tgt.zoom = clamp(baseline.zoom + orbit.zoom, zMin, zMax);
     tgt.panX = 0;
     tgt.panY = 0;
   }

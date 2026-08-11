@@ -2,6 +2,7 @@ import { memo } from 'react';
 import { MacroDial } from './MacroDial';
 import { ParamSlider } from './ParamSlider';
 import type { MacroState, RemixMode } from '@/fractals/types';
+import { ZOOM_MAX, ZOOM_MIN } from '@/fractals/types';
 import { useThrottledCamera } from '@/hooks/useThrottledCamera';
 import { useExplorerStore } from '@/state/ExplorerStore';
 import { useHudIntent } from './hud/HudIntentContext';
@@ -81,10 +82,10 @@ function InstrumentBody() {
             label="Zoom"
             value={live.zoom}
             onChange={(v) => setTargetParam('zoom', v)}
-            min={0.2}
-            max={12}
-            step={0.05}
-            format={(v) => v.toFixed(1)}
+            min={ZOOM_MIN}
+            max={ZOOM_MAX}
+            step={0.01}
+            format={(v) => (v < 1 ? v.toFixed(2) : v.toFixed(1))}
           />
         </>
       )}

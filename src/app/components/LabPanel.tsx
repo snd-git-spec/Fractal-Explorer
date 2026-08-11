@@ -2,6 +2,7 @@ import { memo } from 'react';
 import { ParamSlider } from './ParamSlider';
 import { useThrottledCamera } from '@/hooks/useThrottledCamera';
 import { getInstrument } from '@/fractals/instruments';
+import { ZOOM_MAX, ZOOM_MIN } from '@/fractals/types';
 import { useExplorerStore } from '@/state/ExplorerStore';
 import { useHudIntent } from './hud/HudIntentContext';
 
@@ -32,7 +33,7 @@ function LabBody() {
       )}
       <ParamSlider label={labels.glow} value={camera.glow} onChange={(v) => setTargetParam('glow', v)} min={0} max={1} step={0.005} format={(v) => v.toFixed(2)} />
       <ParamSlider label={labels.bright} value={camera.bright} onChange={(v) => setTargetParam('bright', v)} min={0.1} max={3} step={0.05} format={(v) => v.toFixed(1)} />
-      <ParamSlider label={labels.zoom} value={camera.zoom} onChange={(v) => setTargetParam('zoom', v)} min={0.2} max={12} step={0.05} format={(v) => v.toFixed(1)} />
+      <ParamSlider label={labels.zoom} value={camera.zoom} onChange={(v) => setTargetParam('zoom', v)} min={ZOOM_MIN} max={ZOOM_MAX} step={0.01} format={(v) => (v < 1 ? v.toFixed(2) : v.toFixed(1))} />
       {autoEvolve && (
         <ParamSlider label="Evolve Speed" value={evolveSpeed} onChange={setEvolveSpeed} min={0.05} max={1.5} step={0.05} format={(v) => v.toFixed(2)} />
       )}

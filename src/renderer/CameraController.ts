@@ -1,4 +1,5 @@
 import type { ExplorerRuntimeState } from '@/fractals/types';
+import { ZOOM_MAX, ZOOM_MIN } from '@/fractals/types';
 
 /** Touch: precision first — previous gains spun too fast on phones. */
 const TOUCH_BASE_YAW = 0.85;
@@ -97,7 +98,7 @@ export class CameraController {
 
   private applyZoom(nextZoom: number, commit = false): void {
     const runtime = this.getState();
-    const z = Math.max(0.2, Math.min(12, nextZoom));
+    const z = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, nextZoom));
     runtime.tgt.zoom = z;
     runtime.cur.zoom = z;
     if (commit) this.onZoomCommit?.(z);

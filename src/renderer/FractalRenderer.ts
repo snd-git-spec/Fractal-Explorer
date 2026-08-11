@@ -1,25 +1,26 @@
 import type { ExplorerStoreApi } from '@/state/ExplorerStore';
 import type { AtmosphereState, FractalId } from '@/fractals/types';
-import { DEFAULT_ATMOSPHERE } from '@/fractals/types';
+import {
+  DEFAULT_ATMOSPHERE,
+  PALETTE_COUNT,
+  ZOOM_MAX,
+  ZOOM_MIN,
+} from '@/fractals/types';
 import { applyMacrosToTarget } from '@/fractals/macroMapper';
 import { updateEvolveTargets } from '@/fractals/evolveProfiles';
 import { AdaptiveQuality } from './AdaptiveQuality';
 import { CameraController } from './CameraController';
-import {
-  FpsCounter,
-  lerpCameraState,
-} from './RenderLoop';
-
-function lerp(a: number, b: number, t: number): number {
-  return a + (b - a) * t;
-}
+import { FpsCounter, lerpCameraState } from './RenderLoop';
 import { ShaderCache } from './ShaderCache';
 import {
   getUniformLocations,
   uploadUniforms,
   type UniformLocations,
 } from './Uniforms';
-import { PALETTE_COUNT } from '@/fractals/types';
+
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
+}
 
 export class FractalRenderer {
   private gl: WebGLRenderingContext | null = null;
@@ -42,16 +43,9 @@ export class FractalRenderer {
   private prevAutoEvolve = false;
   /** Monotonic content clock (seconds). */
   private simTime = 0;
-  /** performance.now() until which rotation follow uses a shorter tau (post-drag). */
-  private orbitResumeBoostUntil = 0;
 
   /** Time constant for atmosphere / palette lerp (seconds). */
   private static readonly ATM_TAU = 2.0;
-  /** After release, follow the orbit target more tightly so motion is obvious. */
-  private static readonly ORBIT_RESUME_BOOST_MS = 2200;
-  private static readonly ORBIT_RESUME_TAU = 0.28;
-  /** Warm-start orbit phase so tgt is already off the anchor and chase is visible. */
-  private static readonly ORBIT_RESUME_PHASE = 2.8;
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -86,27 +80,65 @@ export class FractalRenderer {
     this.camera = new CameraController(
       this.canvas,
       () => this.store.getState().runtime,
-      undefined,
+      // Gesture start: absorb the live view so drag begins from what you see (no lag fight).
       () => {
-        // Hard resume: reseed satellite orbit from the pose the user left.
         const state = this.store.getState();
-        const { cur, orbit } = state.runtime;
-        // Subtract live orbit offsets BEFORE setViewAnchor resets them — otherwise
-        // each release absorbs orbit into the baseline and zoom/aim ratchets away.
-        const zoom = Math.max(0.2, Math.min(12, cur.zoom - orbit.zoom));
+        const { cur, tgt } = state.runtime;
+        const pose = {
+          rotX: cur.rotX,
+          rotY: cur.rotY,
+          zoom: Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, cur.zoom)),
+          panX: cur.panX,
+          panY: cur.panY,
+        };
+        state.setViewAnchor(pose);
+        state.runtime.orbitPhase = 0;
+        // Pitch state continues the free-sphere chase from this latitude
+        state.runtime.orbit.rotX = pose.rotX;
+        state.runtime.orbit.azimuth = 0;
+        Object.assign(cur, pose);
+        Object.assign(tgt, {
+          rotX: pose.rotX,
+          rotY: pose.rotY,
+          zoom: pose.zoom,
+          panX: pose.panX,
+          panY: pose.panY,
+        });
+      },
+      // Gesture end: keep the release pose; soft tour continues from here (no jump-back).
+      () => {
+        const state = this.store.getState();
+        const { cur, tgt } = state.runtime;
+        const pose = {
+          rotX: cur.rotX,
+          rotY: cur.rotY,
+          zoom: Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, cur.zoom)),
+          panX: cur.panX,
+          panY: cur.panY,
+        };
+        // Anchor orientation/zoom at release; pan target recenters softly via lerp
         state.setViewAnchor({
-          rotX: cur.rotX - orbit.rotX,
-          rotY: cur.rotY - orbit.rotY,
-          zoom,
+          rotX: pose.rotX,
+          rotY: pose.rotY,
+          zoom: pose.zoom,
           panX: 0,
           panY: 0,
         });
-        cur.panX = 0;
-        cur.panY = 0;
-        cur.zoom = zoom;
-        state.runtime.tgt.zoom = zoom;
-        state.runtime.orbitPhase = FractalRenderer.ORBIT_RESUME_PHASE;
+        state.runtime.orbitPhase = 0;
+        state.runtime.orbit.rotX = pose.rotX;
+        state.runtime.orbit.azimuth = 0;
+        cur.rotX = pose.rotX;
+        cur.rotY = pose.rotY;
+        cur.zoom = pose.zoom;
+        // Leave cur.pan as-is so it eases to 0 instead of snapping
+        tgt.rotX = pose.rotX;
+        tgt.rotY = pose.rotY;
+        tgt.zoom = pose.zoom;
+        tgt.panX = 0;
+        tgt.panY = 0;
+
         if (state.autoEvolve) {
+          // dt=0 refresh: with phase 0, orbit deltas are 0 → tgt view stays on pose
           updateEvolveTargets({
             tgt: state.runtime.tgt,
             baseline: state.getMacroBaseline(),
@@ -121,20 +153,18 @@ export class FractalRenderer {
             iters: state.iters,
             fractalId: state.fractalId,
           });
-        } else {
-          state.runtime.tgt.rotX = cur.rotX;
-          state.runtime.tgt.rotY = cur.rotY;
-          state.runtime.tgt.zoom = zoom;
-          state.runtime.tgt.panX = 0;
-          state.runtime.tgt.panY = 0;
+          // Re-assert view after morph write (morph shouldn't touch rot, but be safe)
+          tgt.rotX = pose.rotX;
+          tgt.rotY = pose.rotY;
+          tgt.zoom = pose.zoom;
+          tgt.panX = 0;
+          tgt.panY = 0;
         }
-        this.orbitResumeBoostUntil =
-          performance.now() + FractalRenderer.ORBIT_RESUME_BOOST_MS;
       },
       // Wheel zoom: update baseline only (no orbit reseed / resume kick).
       (zoom) => {
         const state = this.store.getState();
-        const base = Math.max(0.2, Math.min(12, zoom - state.runtime.orbit.zoom));
+        const base = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, zoom - state.runtime.orbit.zoom));
         state.setTargetParam('zoom', base);
         // Keep the distance the wheel just set (baseline + current orbit breathe)
         state.runtime.cur.zoom = zoom;
@@ -280,16 +310,11 @@ export class FractalRenderer {
     }
 
     if (evolveDt > 0) {
-      const rotTau =
-        state.autoEvolve && performance.now() < this.orbitResumeBoostUntil
-          ? FractalRenderer.ORBIT_RESUME_TAU
-          : undefined;
       lerpCameraState(
         state.runtime,
         evolveDt,
         state.snapshotLerpBoost,
         state.autoEvolve,
-        rotTau,
       );
     }
 

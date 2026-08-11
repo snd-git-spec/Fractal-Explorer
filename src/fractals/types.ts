@@ -85,13 +85,18 @@ export function seedOrbit(orbit: CameraOrbit): void {
   };
 }
 
-export function resetOrbit(orbit: CameraOrbit): void {
+/** Clear live offsets only — keeps path seeds so a gesture can resume the same tour. */
+export function zeroOrbitOffsets(orbit: CameraOrbit): void {
   orbit.rotX = 0;
   orbit.rotY = 0;
   orbit.zoom = 0;
   orbit.panX = 0;
   orbit.panY = 0;
   orbit.azimuth = 0;
+}
+
+export function resetOrbit(orbit: CameraOrbit): void {
+  zeroOrbitOffsets(orbit);
   seedOrbit(orbit);
 }
 
@@ -117,6 +122,10 @@ export const DEFAULT_CAMERA: CameraState = {
   glow: 0.0,
   bright: 1.35,
 };
+
+/** Camera distance rails — low enough for deep IFS / infinite zoom-ins. */
+export const ZOOM_MIN = 0.05;
+export const ZOOM_MAX = 12;
 
 export function createRuntimeState(): ExplorerRuntimeState {
   const orbit = { ...DEFAULT_ORBIT, seeds: { ...DEFAULT_ORBIT.seeds } };

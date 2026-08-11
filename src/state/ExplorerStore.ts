@@ -16,6 +16,7 @@ import {
   DEFAULT_MACROS,
   DEFAULT_VIEW_ANCHOR,
   resetOrbit,
+  zeroOrbitOffsets,
   type AtmosphereState,
   type CameraState,
   type ExplorerRuntimeState,
@@ -113,6 +114,8 @@ function applySnapshotToState(
 
   // Instant snap so snapshot framing is visible immediately
   Object.assign(runtime.cur, runtime.tgt);
+  runtime.orbit.rotX = runtime.cur.rotX;
+  runtime.orbit.azimuth = 0;
 
   const atmosphere = snapshot.atmosphere
     ? { ...get().atmosphere, ...snapshot.atmosphere }
@@ -131,7 +134,7 @@ function applySnapshotToState(
 }
 
 export const useExplorerStore = create<ExplorerStore>((set, get) => ({
-  fractalId: 0,
+  fractalId: 13,
   paletteIdx: 8,
   autoEvolve: true,
   uiVisible: true,
@@ -178,6 +181,8 @@ export const useExplorerStore = create<ExplorerStore>((set, get) => ({
     prevBaseline.panY = 0;
     runtime.tgt.zoom = view.zoom;
     runtime.cur.zoom = view.zoom;
+    runtime.orbit.rotX = view.rotX;
+    runtime.orbit.azimuth = 0;
 
     const anchor = { ...view };
     set({
@@ -220,6 +225,8 @@ export const useExplorerStore = create<ExplorerStore>((set, get) => ({
         panY: 0,
       });
       Object.assign(runtime.tgt, cur);
+      runtime.orbit.rotX = cur.rotX;
+      runtime.orbit.azimuth = 0;
       set({ macroBaseline: baseline, autoEvolve: v });
     } else {
       set({ atmosphere: { ...get().atmosphereBaseline }, autoEvolve: v });
@@ -327,13 +334,13 @@ export const useExplorerStore = create<ExplorerStore>((set, get) => ({
     Object.assign(get().viewAnchor, view);
     const anchor = get().viewAnchor;
     const baseline = get().macroBaseline;
-    // Only reseed orbit when orientation/pan changes — zoom tweaks must not jerk the path
+    // Zero offsets only — keep orbit seeds so resume continues the same tour path
     const orientationChange =
       view.rotX !== undefined ||
       view.rotY !== undefined ||
       view.panX !== undefined ||
       view.panY !== undefined;
-    if (orientationChange) resetOrbit(get().runtime.orbit);
+    if (orientationChange) zeroOrbitOffsets(get().runtime.orbit);
     if (view.rotX !== undefined) baseline.rotX = anchor.rotX;
     if (view.rotY !== undefined) baseline.rotY = anchor.rotY;
     if (view.panX !== undefined) baseline.panX = anchor.panX;
@@ -467,6 +474,8 @@ const initial = useExplorerStore.getState();
 const initView = applyFractalPreset(initial.runtime.tgt, initial.fractalId);
 const initResult = applyMacrosToTarget(initial.macros, initial.fractalId, initial.runtime.tgt, true);
 snapCameraToView(initial.runtime.cur, initView);
+initial.runtime.orbit.rotX = initView.rotX;
+initial.runtime.orbit.azimuth = 0;
 useExplorerStore.setState({
   atmosphere: initResult.atmosphere,
   atmosphereBaseline: { ...initResult.atmosphere },
