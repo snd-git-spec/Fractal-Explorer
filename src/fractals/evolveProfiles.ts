@@ -36,6 +36,16 @@ export interface EvolveResult {
 /** Fractals that must keep geometry on-screen (no long black / empty stretches). */
 const PRESENCE_IDS: ReadonlySet<FractalId> = new Set<FractalId>([1, 5, 7, 14, 15, 16, 17]);
 
+/** Fractals whose detail fills the frame so the same yaw rate reads as a blur. */
+const DENSE_ORBIT_IDS: ReadonlySet<FractalId> = new Set<FractalId>([
+  4, // Apollonian
+  7, // Pseudo-Kleinian
+  8, // Kleinian IFS
+  11, // Amazing Surf
+  12, // Kleinian
+  14, // Kali
+]);
+
 function wantsPresence(id: FractalId): boolean {
   return PRESENCE_IDS.has(id);
 }
@@ -43,6 +53,14 @@ function wantsPresence(id: FractalId): boolean {
 /** Full-sphere satellite tours — every fractal uses the global path. */
 function wantsGlobalRoute(_id: FractalId): boolean {
   return true;
+}
+
+/** Keep screen-space motion calm: closer zoom + dense packings need slower turns. */
+function orbitPace(fractalId: FractalId, zoom: number): number {
+  const byZoom = clamp(zoom / 3.2, 0.15, 0.85);
+  if (fractalId === 15) return byZoom * 0.32;
+  if (DENSE_ORBIT_IDS.has(fractalId)) return byZoom * 0.18;
+  return byZoom * 0.55;
 }
 
 /** Phase clock for colour / atmosphere. */
@@ -122,38 +140,45 @@ function sampleOrbitPose(
   const i = beh.intensity;
   const global = wantsGlobalRoute(fractalId);
   const presence = wantsPresence(fractalId) && !global;
-  // Jerusalem Cube — temple corridors read better on a slow drift
-  const slowTour = fractalId === 15;
-  const rateMul = slowTour ? 0.42 : 1;
+  // pace is applied via elapsed by the caller; keep a mild local trim for dense sets
+  const dense = DENSE_ORBIT_IDS.has(fractalId);
+  const rateMul = fractalId === 15 ? 0.38 : dense ? 0.4 : 1;
 
-  // Global path is on for every fractal — keep it calm so immersed zooms stay readable
+  // Slow global drift — full-sphere path, readable on every fractal
   const azSpeed =
     (global
-      ? lerp(0.048, 0.078, i) * (0.85 + 0.3 * seeds.azRateScale)
+      ? lerp(0.022, 0.038, i) * (0.85 + 0.25 * seeds.azRateScale)
       : lerp(ORBIT.azMin, ORBIT.azMax, i) * seeds.azRateScale) * rateMul;
   const elSpeed =
     (global
-      ? lerp(0.032, 0.055, i) * (0.85 + 0.3 * seeds.elRateScale)
+      ? lerp(0.016, 0.028, i) * (0.85 + 0.25 * seeds.elRateScale)
       : lerp(0.045, 0.085, i) * (0.85 + 0.4 * seeds.elRateScale)) * rateMul;
   const zoomSpeed =
-    (global ? lerp(0.0012, 0.0022, i) : lerp(ORBIT.zoomMin, ORBIT.zoomMax, i)) * rateMul;
+    (global ? lerp(0.0006, 0.0012, i) : lerp(ORBIT.zoomMin, ORBIT.zoomMax, i)) * rateMul;
 
   const yp = elapsed * azSpeed + seeds.azOffset;
   const ep = elapsed * elSpeed + seeds.elPhase;
-  // Seed flips which harmonics lead — not a permanent left/right lock
   const d = seeds.azDir || 1;
 
-  // Quasi-random yaw: full-sphere wander both ways, low angular rates
-  const yawAmp = global ? 0.85 : presence ? 0.72 : 0.9;
+  // Modest amplitudes — tour the sphere without whipping
+  const yawAmp = global ? (dense ? 0.38 : 0.58) : presence ? 0.72 : 0.9;
   const rotY =
-    Math.sin(yp * 0.28) * 2.1 * yawAmp * d +
-    Math.sin(yp * 0.41 + seeds.zoomPhase) * 1.35 * yawAmp +
-    Math.sin(yp * GOLDEN + seeds.elPhase) * 0.95 * yawAmp * d +
-    Math.cos(yp * 0.17 + 1.1) * 0.75 * yawAmp +
-    Math.sin(yp * 0.55 + seeds.azOffset * 0.5) * 0.45 * yawAmp +
-    Math.sin(yp * 0.82 + 2.3) * 0.28 * yawAmp * d;
+    Math.sin(yp * 0.26) * 1.75 * yawAmp * d +
+    Math.sin(yp * 0.39 + seeds.zoomPhase) * 1.1 * yawAmp +
+    Math.sin(yp * GOLDEN + seeds.elPhase) * 0.75 * yawAmp * d +
+    Math.cos(yp * 0.15 + 1.1) * 0.55 * yawAmp +
+    Math.sin(yp * 0.48 + seeds.azOffset * 0.5) * 0.35 * yawAmp +
+    Math.sin(yp * 0.7 + 2.3) * 0.2 * yawAmp * d;
 
-  const pole = global ? 1.15 : fractalId === 5 ? 0.55 : presence ? 0.58 : 0.72;
+  const pole = global
+    ? dense
+      ? 0.7
+      : 0.95
+    : fractalId === 5
+      ? 0.55
+      : presence
+        ? 0.58
+        : 0.72;
   const rotX = global
     ? Math.sin(ep) * pole + Math.sin(ep * GOLDEN + seeds.zoomPhase) * 0.05
     : Math.sin(ep) * pole * 0.62 +
@@ -440,8 +465,8 @@ export function updateEvolveTargets(ctx: EvolveContext): EvolveResult {
   const speedScale = spd / 0.3;
   const p      = ctx.evolvePhase + dt * spd * PHASE_RATE;
   const morphP = ctx.morphPhase  + dt * morph.morphRate * speedScale;
-  // Camera clock — calm global tour (was 1.05 and felt frantic on immersed fractals)
-  const orbitRate = fractalId === 15 ? 0.35 : 0.52;
+  // Camera clock — deliberately slow so form stays readable while touring
+  const orbitRate = 0.28 * orbitPace(fractalId, baseline.zoom);
   const orbitP = ctx.orbitPhase + dt * speedScale * orbitRate;
   const beh = resolveEvolveBehavior(p);
 
