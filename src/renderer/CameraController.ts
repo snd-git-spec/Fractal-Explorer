@@ -41,6 +41,8 @@ export class CameraController {
   attach(): void {
     this.canvas.addEventListener('mousedown', this.onMouseDown);
     window.addEventListener('mouseup', this.onMouseUp);
+    window.addEventListener('pointerup', this.onPointerUp);
+    window.addEventListener('pointercancel', this.onForceEnd);
     window.addEventListener('mousemove', this.onMouseMove);
     window.addEventListener('blur', this.onForceEnd);
     this.canvas.addEventListener('wheel', this.onWheel, { passive: false });
@@ -53,6 +55,8 @@ export class CameraController {
   detach(): void {
     this.canvas.removeEventListener('mousedown', this.onMouseDown);
     window.removeEventListener('mouseup', this.onMouseUp);
+    window.removeEventListener('pointerup', this.onPointerUp);
+    window.removeEventListener('pointercancel', this.onForceEnd);
     window.removeEventListener('mousemove', this.onMouseMove);
     window.removeEventListener('blur', this.onForceEnd);
     this.canvas.removeEventListener('wheel', this.onWheel);
@@ -84,7 +88,7 @@ export class CameraController {
     const runtime = this.getState();
     for (const s of [runtime.tgt, runtime.cur]) {
       s.rotY += dYaw;
-      s.rotX = Math.max(-1.3, Math.min(1.3, s.rotX + dPitch));
+      s.rotX = Math.max(-1.28, Math.min(1.28, s.rotX + dPitch));
     }
   }
 
@@ -134,7 +138,14 @@ export class CameraController {
   };
 
   private onMouseUp = (): void => {
-    if (performance.now() < this.suppressMouseUntil) return;
+    // Always clear a mouse drag — don't leave holdView stuck (orbit freezes while gesturing)
+    if (this.inputKind === 'touch') return;
+    if (!this.isDragging) return;
+    this.endGesture();
+  };
+
+  private onPointerUp = (e: PointerEvent): void => {
+    if (e.pointerType === 'touch') return;
     if (!this.isDragging || this.inputKind === 'touch') return;
     this.endGesture();
   };

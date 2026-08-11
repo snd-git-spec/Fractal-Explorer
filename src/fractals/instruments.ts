@@ -372,14 +372,14 @@ const INSTRUMENTS: Record<FractalId, FractalInstrument> = {
       {
         name: 'Cathedral',
         macros: { pulse: 0.5, depth: 1.0, drift: 0.4, void: 0.25 },
-        camera: { zoom: 0.62, rotX: 0.5, rotY: 0.85 },
+        camera: { zoom: 1.9, rotX: 0.5, rotY: 0.85 },
         atmosphere: { fog: 0.28, fov: 1.45, gamma: 0.55, vignette: 0.65 },
         palette: 3,
       },
       {
         name: 'Phason Drift',
         macros: { pulse: 0.65, depth: 1.0, drift: 0.7, void: 0.22 },
-        camera: { zoom: 0.62, rotX: 0.6, rotY: 1.1 },
+        camera: { zoom: 1.9, rotX: 0.6, rotY: 1.1 },
         atmosphere: { fog: 0.25, fov: 1.5, gamma: 0.55, vignette: 0.6 },
         palette: 7,
       },

@@ -48,7 +48,7 @@ const MORPH: Record<FractalId, EvolveMorphConfig> = {
   13: { ...BASE, powerMul: 2.5, bailoutMul: 2.0, warpMul: 2.8, detailMul: 1.8 },
   14: { ...BASE, morphRate: 0.07, powerMul: 1.8, bailoutMul: 1.5, warpMul: 1.85, detailMul: 1.2 },
   15: { ...BASE, morphRate: 0.085, powerMul: 2.0, bailoutMul: 1.85, warpMul: 2.1, detailMul: 1.3 },
-  16: { ...BASE, morphRate: 0.07, powerMul: 2.2, bailoutMul: 1.8, warpMul: 2.0, detailMul: 1.4 },
+  16: { ...BASE, morphRate: 0.04, powerMul: 1.4, bailoutMul: 1.25, warpMul: 1.35, detailMul: 0.9 },
   17: { ...BASE, morphRate: 0.065, powerMul: 2.0, bailoutMul: 1.75, warpMul: 1.9, detailMul: 1.2 },
 };
 

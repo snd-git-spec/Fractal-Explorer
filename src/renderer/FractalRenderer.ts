@@ -7,7 +7,7 @@ import {
   ZOOM_MIN,
 } from '@/fractals/types';
 import { applyMacrosToTarget } from '@/fractals/macroMapper';
-import { updateEvolveTargets } from '@/fractals/evolveProfiles';
+import { updateEvolveTargets, syncSphereOrbitToPitch } from '@/fractals/evolveProfiles';
 import { AdaptiveQuality } from './AdaptiveQuality';
 import { CameraController } from './CameraController';
 import { FpsCounter, lerpCameraState } from './RenderLoop';
@@ -80,7 +80,8 @@ export class FractalRenderer {
     this.camera = new CameraController(
       this.canvas,
       () => this.store.getState().runtime,
-      // Gesture start: absorb the live view so drag begins from what you see (no lag fight).
+      undefined,
+      // Gesture end: absorb pose; resume free-sphere tour from here.
       () => {
         const state = this.store.getState();
         const { cur, tgt } = state.runtime;
@@ -91,32 +92,6 @@ export class FractalRenderer {
           panX: cur.panX,
           panY: cur.panY,
         };
-        state.setViewAnchor(pose);
-        state.runtime.orbitPhase = 0;
-        // Pitch state continues the free-sphere chase from this latitude
-        state.runtime.orbit.rotX = pose.rotX;
-        state.runtime.orbit.azimuth = 0;
-        Object.assign(cur, pose);
-        Object.assign(tgt, {
-          rotX: pose.rotX,
-          rotY: pose.rotY,
-          zoom: pose.zoom,
-          panX: pose.panX,
-          panY: pose.panY,
-        });
-      },
-      // Gesture end: keep the release pose; soft tour continues from here (no jump-back).
-      () => {
-        const state = this.store.getState();
-        const { cur, tgt } = state.runtime;
-        const pose = {
-          rotX: cur.rotX,
-          rotY: cur.rotY,
-          zoom: Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, cur.zoom)),
-          panX: cur.panX,
-          panY: cur.panY,
-        };
-        // Anchor orientation/zoom at release; pan target recenters softly via lerp
         state.setViewAnchor({
           rotX: pose.rotX,
           rotY: pose.rotY,
@@ -124,42 +99,15 @@ export class FractalRenderer {
           panX: 0,
           panY: 0,
         });
-        state.runtime.orbitPhase = 0;
-        state.runtime.orbit.rotX = pose.rotX;
-        state.runtime.orbit.azimuth = 0;
+        syncSphereOrbitToPitch(state.runtime.orbit, pose.rotX);
         cur.rotX = pose.rotX;
         cur.rotY = pose.rotY;
         cur.zoom = pose.zoom;
-        // Leave cur.pan as-is so it eases to 0 instead of snapping
         tgt.rotX = pose.rotX;
         tgt.rotY = pose.rotY;
         tgt.zoom = pose.zoom;
         tgt.panX = 0;
         tgt.panY = 0;
-
-        if (state.autoEvolve) {
-          // dt=0 refresh: with phase 0, orbit deltas are 0 → tgt view stays on pose
-          updateEvolveTargets({
-            tgt: state.runtime.tgt,
-            baseline: state.getMacroBaseline(),
-            atmosphereBaseline: state.getAtmosphereBaseline(),
-            orbit: state.runtime.orbit,
-            evolvePhase: state.runtime.evolvePhase,
-            morphPhase: state.runtime.morphPhase,
-            orbitPhase: state.runtime.orbitPhase,
-            dt: 0,
-            evolveSpeed: state.evolveSpeed,
-            paletteIdx: state.paletteIdx,
-            iters: state.iters,
-            fractalId: state.fractalId,
-          });
-          // Re-assert view after morph write (morph shouldn't touch rot, but be safe)
-          tgt.rotX = pose.rotX;
-          tgt.rotY = pose.rotY;
-          tgt.zoom = pose.zoom;
-          tgt.panX = 0;
-          tgt.panY = 0;
-        }
       },
       // Wheel zoom: update baseline only (no orbit reseed / resume kick).
       (zoom) => {

@@ -9,7 +9,7 @@ const SNAPSHOT_LERP = 0.12;
  * k = 1 - exp(-dt / TAU)  — same perceived speed at any frame rate.
  */
 // Keep this short — a long tau makes post-drag resume look frozen while lag rebuilds.
-const ROT_TAU   = 0.7;  // seconds — soft follow so tours don't feel twitchy
+const ROT_TAU   = 0.45;  // seconds — follow poles/longitude without feeling stuck sideways
 const PARAM_TAU = 1.8;  // seconds — shape morph catches up
 const COLOR_TAU = 4.5;  // seconds — hue eases slowly (git mapping feel)
 const PAN_TAU   = 0.9;  // seconds — pan snaps back to centre

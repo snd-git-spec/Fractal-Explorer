@@ -42,14 +42,16 @@ const DENSE_ORBIT_IDS: ReadonlySet<FractalId> = new Set<FractalId>([
   11, // Amazing Surf
   12, // Kleinian
   14, // Kali
+  16, // Penrose — close zoom makes the same yaw feel rushed
 ]);
 
 /** Keep screen-space motion calm: closer zoom + dense packings need slower turns. */
 function orbitPace(fractalId: FractalId, zoom: number): number {
-  const byZoom = clamp(zoom / 3.2, 0.15, 0.85);
-  if (fractalId === 15) return byZoom * 0.32;
-  if (DENSE_ORBIT_IDS.has(fractalId)) return byZoom * 0.18;
-  return byZoom * 0.55;
+  const byZoom = clamp(zoom / 3.2, 0.35, 1);
+  if (fractalId === 16) return byZoom * 0.45;
+  if (fractalId === 15) return byZoom * 0.55;
+  if (DENSE_ORBIT_IDS.has(fractalId)) return byZoom * 0.5;
+  return byZoom * 0.85;
 }
 
 /** Phase clock for colour / atmosphere. */
@@ -60,12 +62,24 @@ const MORPH_FREQ = 1.85;
 const MORPH_FREQ2 = 1.05;
 
 /**
- * Free sphere orbit: slow continuous yaw spin + quasi-random latitude covering N↔S.
+ * Free sphere journey — wall-clock integration of longitude + latitude.
+ * Latitude: POLE_MAX * sin(phase) hits true poles. Longitude: continuous spin + wander.
  */
 const GOLDEN = 0.6180339887;
 
-/** Pitch clamp — true poles for the free sphere tour. */
-const POLE_MAX = 1.25;
+/** Pitch clamp — true poles (±90° of the tour sphere). */
+const POLE_MAX = 1.28;
+
+/** Align orbit so the next frames continue from this pitch (no jump). */
+export function syncSphereOrbitToPitch(orbit: CameraOrbit, rotX: number): void {
+  const x = clamp(rotX, -POLE_MAX, POLE_MAX);
+  orbit.rotX = x;
+  orbit.azimuth = 0;
+  orbit.rotY = 0;
+  orbit.zoom = 0;
+  // Running latitude phase — advanceFreeSphereOrbit integrates this each frame
+  orbit.seeds.elPhase = Math.asin(clamp(x / POLE_MAX, -1, 1));
+}
 
 interface EvolveBehavior {
   intensity: number;
@@ -115,71 +129,66 @@ function resolveEvolveBehavior(phase: number): EvolveBehavior {
   return lerpBehavior(EVOLVE_CYCLE[idx], EVOLVE_CYCLE[nextIdx], t);
 }
 
-/** Drive for a free spherical tour — spin rate, wandering pole-to-pole pitch, zoom breathe. */
-function sampleSphereDrive(
-  elapsed: number,
+/** Wall-clock rates (rad/sec). Density/zoom pacing is applied once via orbitPace(dt). */
+function sphereRates(
   seeds: CameraOrbit['seeds'],
   beh: EvolveBehavior,
   fractalId: FractalId,
-): { spinRate: number; elTarget: number; zoom: number } {
+  pathTime: number,
+): { spin: number; elOmega: number; zoomOmega: number; zoomAmp: number } {
   const i = beh.intensity;
   const dense = DENSE_ORBIT_IDS.has(fractalId);
-  const rateMul = fractalId === 15 ? 0.38 : dense ? 0.42 : 1;
   const d = seeds.azDir || 1;
 
-  // Slow top-spin (rad per orbit-phase unit), lightly modulated so it never feels motorized
+  // ~20–35s per full yaw turn at pace=1
   const spinBase =
-    lerp(0.2, 0.36, i) * (0.85 + 0.3 * seeds.azRateScale) * rateMul * (dense ? 0.55 : 1);
-  const spinRate =
+    lerp(0.2, 0.32, i) * (0.85 + 0.25 * seeds.azRateScale);
+  const spin =
     spinBase *
     d *
-    (1.0 +
-      0.22 * Math.sin(elapsed * 0.06 + seeds.azOffset) +
-      0.12 * Math.sin(elapsed * 0.11 * GOLDEN + seeds.zoomPhase));
+    (1 +
+      0.2 * Math.sin(pathTime * 0.11 + seeds.azOffset) +
+      0.12 * Math.sin(pathTime * 0.07 * GOLDEN + seeds.zoomPhase));
 
-  // Quasi-random latitude covering full sphere (incommensurate freqs → dense free path)
-  const elSpeed =
-    lerp(0.018, 0.032, i) * (0.8 + 0.35 * seeds.elRateScale) * rateMul;
-  const ep = elapsed * elSpeed + seeds.elPhase;
-  const elTarget = clamp(
-    Math.sin(ep) * 0.95 +
-      Math.sin(ep * GOLDEN + seeds.zoomPhase) * 0.42 +
-      Math.sin(ep * 0.37 + seeds.azOffset) * 0.28 +
-      Math.cos(ep * 1.41 + seeds.elPhase * 0.5) * 0.18 +
-      Math.sin(ep * 0.19 + 2.1) * 0.12,
-    -POLE_MAX,
-    POLE_MAX,
-  );
+  // ~15–25s equator→pole→equator (half-period π / elOmega)
+  const elOmega =
+    lerp(0.14, 0.22, i) * (0.85 + 0.3 * seeds.elRateScale);
 
-  const zoomSpeed = lerp(0.0006, 0.0012, i) * rateMul;
-  const zoomAmp = (dense ? 0.035 : 0.05) + i * 0.035;
-  const zt = elapsed * zoomSpeed + seeds.zoomPhase;
-  const zoom =
-    Math.sin(zt) * zoomAmp * 0.35 +
-    Math.sin(zt * seeds.zoomFreqA * 22.0 + 0.9) * zoomAmp * 0.2 +
-    Math.cos(zt * seeds.zoomFreqB * 35.0 + 1.4) * zoomAmp * 0.12;
+  const zoomOmega = lerp(0.06, 0.1, i);
+  const zoomAmp = (dense ? 0.028 : 0.04) + i * 0.025;
 
-  return { spinRate, elTarget, zoom };
+  return { spin, elOmega, zoomOmega, zoomAmp };
 }
 
+/**
+ * Integrate sphere pose with wall dt so motion cannot freeze when orbitPhase is tiny/reset.
+ * Mutates seeds.elPhase / zoomPhase as running integrators.
+ */
 function advanceFreeSphereOrbit(
   orbit: CameraOrbit,
-  elapsed: number,
   dt: number,
+  pathTime: number,
   beh: EvolveBehavior,
   fractalId: FractalId,
 ): void {
-  const drive = sampleSphereDrive(elapsed, orbit.seeds, beh, fractalId);
+  if (dt <= 0) return;
 
-  // Accumulate yaw spin (continuous) — azimuth is the free longitude
-  orbit.azimuth += dt * drive.spinRate;
+  const { spin, elOmega, zoomOmega, zoomAmp } = sphereRates(
+    orbit.seeds,
+    beh,
+    fractalId,
+    pathTime,
+  );
 
-  // Soft-chase wandering latitude so N↔S is free but never snappy
-  const elK = 1 - Math.exp(-dt / 2.2);
-  orbit.rotX += (drive.elTarget - orbit.rotX) * elK;
+  orbit.azimuth += dt * spin;
+  orbit.seeds.elPhase += dt * elOmega;
+  orbit.seeds.zoomPhase += dt * zoomOmega;
 
+  orbit.rotX = clamp(POLE_MAX * Math.sin(orbit.seeds.elPhase), -POLE_MAX, POLE_MAX);
   orbit.rotY = orbit.azimuth;
-  orbit.zoom = drive.zoom;
+  orbit.zoom =
+    Math.sin(orbit.seeds.zoomPhase) * zoomAmp * 0.45 +
+    Math.sin(orbit.seeds.zoomPhase * 1.7 + 0.9) * zoomAmp * 0.2;
   orbit.panX = 0;
   orbit.panY = 0;
 }
@@ -420,16 +429,15 @@ export function updateEvolveTargets(ctx: EvolveContext): EvolveResult {
   const morphP = ctx.morphPhase  + dt * morph.morphRate * speedScale;
   const beh = resolveEvolveBehavior(p);
 
-  // Freeze the orbit clock while the user aims — otherwise offsets drift under the gesture
-  // and release math cannot absorb a stable pose.
-  const orbitRate = 0.28 * orbitPace(fractalId, baseline.zoom);
+  // Freeze view while aiming — do not advance sphere integrators
   const orbitP = ctx.holdView
     ? ctx.orbitPhase
-    : ctx.orbitPhase + dt * speedScale * orbitRate;
+    : ctx.orbitPhase + dt * speedScale;
 
   if (!ctx.holdView) {
-    // Free sphere: yaw keeps spinning; pitch wanders quasi-randomly pole-to-pole
-    advanceFreeSphereOrbit(orbit, orbitP, dt * speedScale, beh, fractalId);
+    // Wall-clock sphere tour (dt) — independent of the old near-frozen orbitPhase sampler
+    const pace = orbitPace(fractalId, baseline.zoom);
+    advanceFreeSphereOrbit(orbit, dt * speedScale * pace, orbitP, beh, fractalId);
 
     tgt.rotY = baseline.rotY + orbit.azimuth;
     tgt.rotX = clamp(orbit.rotX, -POLE_MAX, POLE_MAX);

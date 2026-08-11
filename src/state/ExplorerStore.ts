@@ -5,6 +5,7 @@ import { getSnapshots, type FractalSnapshot } from '@/fractals/instruments';
 import { getFractalSlug } from '@/fractals/registry';
 import { remixState } from '@/fractals/remix';
 import { decodeSeed, encodeSeed, getSeedFromUrl, setSeedInUrl } from '@/fractals/seeds';
+import { syncSphereOrbitToPitch } from '@/fractals/evolveProfiles';
 import {
   startCanvasRecording,
   stopCanvasRecording,
@@ -114,8 +115,7 @@ function applySnapshotToState(
 
   // Instant snap so snapshot framing is visible immediately
   Object.assign(runtime.cur, runtime.tgt);
-  runtime.orbit.rotX = runtime.cur.rotX;
-  runtime.orbit.azimuth = 0;
+  syncSphereOrbitToPitch(runtime.orbit, runtime.cur.rotX);
 
   const atmosphere = snapshot.atmosphere
     ? { ...get().atmosphere, ...snapshot.atmosphere }
@@ -181,8 +181,7 @@ export const useExplorerStore = create<ExplorerStore>((set, get) => ({
     prevBaseline.panY = 0;
     runtime.tgt.zoom = view.zoom;
     runtime.cur.zoom = view.zoom;
-    runtime.orbit.rotX = view.rotX;
-    runtime.orbit.azimuth = 0;
+    syncSphereOrbitToPitch(runtime.orbit, view.rotX);
 
     const anchor = { ...view };
     set({
@@ -225,8 +224,7 @@ export const useExplorerStore = create<ExplorerStore>((set, get) => ({
         panY: 0,
       });
       Object.assign(runtime.tgt, cur);
-      runtime.orbit.rotX = cur.rotX;
-      runtime.orbit.azimuth = 0;
+      syncSphereOrbitToPitch(runtime.orbit, cur.rotX);
       set({ macroBaseline: baseline, autoEvolve: v });
     } else {
       set({ atmosphere: { ...get().atmosphereBaseline }, autoEvolve: v });
@@ -474,8 +472,7 @@ const initial = useExplorerStore.getState();
 const initView = applyFractalPreset(initial.runtime.tgt, initial.fractalId);
 const initResult = applyMacrosToTarget(initial.macros, initial.fractalId, initial.runtime.tgt, true);
 snapCameraToView(initial.runtime.cur, initView);
-initial.runtime.orbit.rotX = initView.rotX;
-initial.runtime.orbit.azimuth = 0;
+syncSphereOrbitToPitch(initial.runtime.orbit, initView.rotX);
 useExplorerStore.setState({
   atmosphere: initResult.atmosphere,
   atmosphereBaseline: { ...initResult.atmosphere },
