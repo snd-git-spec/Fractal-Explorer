@@ -23,12 +23,13 @@ const BASE: Omit<EvolveMorphConfig, 'powerMul' | 'bailoutMul' | 'warpMul' | 'det
 };
 
 const MORPH: Record<FractalId, EvolveMorphConfig> = {
-  0: { ...BASE, powerMul: 2.6, bailoutMul: 2.2, warpMul: 3.4, detailMul: 2.2 },
+  // Mandelbulb: faster steady crawl (still in-band — no clamp parking)
+  0: { ...BASE, morphRate: 0.092, powerMul: 1.0, bailoutMul: 1.0, warpMul: 1.0, detailMul: 1.35 },
   1: { ...BASE, powerMul: 3.8, bailoutMul: 3.0, warpMul: 4.2, detailMul: 2.8 },
   2: { ...BASE, powerMul: 1.8, bailoutMul: 1.6, warpMul: 2.4, detailMul: 0.5 },
   3: { ...BASE, powerMul: 3.0, bailoutMul: 2.0, warpMul: 2.6, detailMul: 2.8 },
   4: { ...BASE, powerMul: 3.2, bailoutMul: 1.9, warpMul: 2.5, detailMul: 2.6 },
-  5: { ...BASE, powerMul: 2.9, bailoutMul: 2.0, warpMul: 2.6, detailMul: 2.6 },
+  5: { ...BASE, morphRate: 0.052, powerMul: 1.0, bailoutMul: 1.0, warpMul: 1.0, detailMul: 1.0 },
   6: { ...BASE, powerMul: 3.0, bailoutMul: 1.9, warpMul: 2.6, detailMul: 2.8 },
   // PK: Julia C + plane trap snap hard when harmonics align — slower rate, softer amps
   7: {
@@ -45,7 +46,10 @@ const MORPH: Record<FractalId, EvolveMorphConfig> = {
   11: { ...BASE, powerMul: 3.0, bailoutMul: 2.4, warpMul: 2.3, detailMul: 2.4 },
   12: { ...BASE, powerMul: 2.7, bailoutMul: 2.2, warpMul: 2.5, detailMul: 1.8 },
   13: { ...BASE, powerMul: 2.5, bailoutMul: 2.0, warpMul: 2.8, detailMul: 1.8 },
-  14: { ...BASE, powerMul: 2.4, bailoutMul: 2.0, warpMul: 3.0, detailMul: 1.7 },
+  14: { ...BASE, morphRate: 0.07, powerMul: 1.8, bailoutMul: 1.5, warpMul: 1.85, detailMul: 1.2 },
+  15: { ...BASE, morphRate: 0.085, powerMul: 2.0, bailoutMul: 1.85, warpMul: 2.1, detailMul: 1.3 },
+  16: { ...BASE, morphRate: 0.07, powerMul: 2.2, bailoutMul: 1.8, warpMul: 2.0, detailMul: 1.4 },
+  17: { ...BASE, morphRate: 0.065, powerMul: 2.0, bailoutMul: 1.75, warpMul: 1.9, detailMul: 1.2 },
 };
 
 export function getEvolveMorph(fractalId: FractalId): EvolveMorphConfig {

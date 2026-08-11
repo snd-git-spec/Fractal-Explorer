@@ -28,12 +28,13 @@ float softShadow(vec3 ro, vec3 rd, float mint, float maxt, float k) {
   float res = 1.0, t = mint;
   for (int i = 0; i < 12; i++) {
     float h = sceneSDE(ro + rd * t);
-    if (h < 0.001) return 0.0;
+    // Never hard-black — foam fractals (Kali etc.) speckled when shadow rays nick neighbours
+    if (h < 0.001) return 0.22;
     res = min(res, k * h / t);
     t += clamp(h, 0.02, 0.25);
     if (t > maxt) break;
   }
-  return clamp(res, 0.0, 1.0);
+  return clamp(res, 0.22, 1.0);
 }
 
 vec3 iqPalette(vec3 a, vec3 b, vec3 c, vec3 d, float t) {
@@ -121,7 +122,8 @@ vec3 surfaceTint(vec3 p, vec3 nor, float ao, float tHit, float trapRaw, out floa
   float hasTrap = step(trapRaw, 1000.0);
   float trapVal = clamp(trapRaw, 0.0, 1.0);
   float spinSrc = mix(1.0 - ao, trapVal, hasTrap);
-  float hueSpin = fract(spinSrc * 6.0);
+  // u_colorShift (glow) — seam-free global hue tour; tracks evolve / morph
+  float hueSpin = fract(spinSrc * 6.0 + u_colorShift * 0.38);
   hueSpinOut = hueSpin;
   vec3 a = paletteAt(u_palette, t, hueSpin);
   vec3 b = paletteAt(u_palette, clamp(t + 0.08, 0.0, 1.0), hueSpin);
@@ -142,7 +144,8 @@ float rayMarch(vec3 ro, vec3 rd, out int steps) {
     float d = sceneSDE(ro + rd * t);
     if (d < MIN_DIST * t) break;
     if (t > MAX_DIST) { t = MAX_DIST + 1.0; break; }
-    t += d * 0.85;
+    // Safer step — thin Kali/IFS sheets were overshot into black miss holes
+    t += d * 0.72;
   }
   return t;
 }
@@ -187,7 +190,7 @@ void main() {
     col += fill * baseCol * 0.22;
     col += fres * rimCol * (0.5 + 0.85 * u_bright);
     col += edge * rimCol * 0.16;
-    col *= mix(0.72, 1.0, ao);
+    col *= mix(0.82, 1.0, ao);
     vec3 halfV = normalize(lig1 - rd);
     float spec = pow(max(dot(nor, halfV), 0.0), 36.0);
     col += spec * (0.85 + 0.55 * u_bright) * mix(vec3(1.0), rimCol, 0.55) * sha;

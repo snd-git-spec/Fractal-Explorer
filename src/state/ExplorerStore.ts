@@ -126,6 +126,7 @@ function applySnapshotToState(
     paletteIdx: snapshot.palette ?? get().paletteIdx,
     macroBaseline: { ...runtime.tgt },
     snapshotLerpBoost: true,
+    iters: result.iters,
   });
 }
 
@@ -184,6 +185,7 @@ export const useExplorerStore = create<ExplorerStore>((set, get) => ({
       atmosphere: result.atmosphere,
       viewAnchor: anchor,
       macroBaseline: { ...prevBaseline },
+      iters: result.iters,
     });
   },
 
@@ -250,10 +252,10 @@ export const useExplorerStore = create<ExplorerStore>((set, get) => ({
   setMacro: (key, value) => {
     const macros = { ...get().macros, [key]: value };
     const view = get().viewAnchor;
-    const { baseline, atmosphere } = buildMacroBaseline(macros, get().fractalId, view);
+    const { baseline, atmosphere, iters } = buildMacroBaseline(macros, get().fractalId, view);
 
     if (get().autoEvolve) {
-      set({ macros, macroBaseline: baseline });
+      set({ macros, macroBaseline: baseline, iters });
       Object.assign(get().atmosphereBaseline, atmosphere);
       // Snap cur + tgt to new baseline immediately so the effect is visible at once
       // rather than waiting 5+ seconds for the slow TAU lerp to catch up.
@@ -269,16 +271,21 @@ export const useExplorerStore = create<ExplorerStore>((set, get) => ({
       Object.assign(get().runtime.cur, snap);
     } else {
       const result = applyMacrosToTarget(macros, get().fractalId, get().runtime.tgt, true);
-      set({ macros, atmosphere: result.atmosphere, macroBaseline: { ...get().runtime.tgt } });
+      set({
+        macros,
+        atmosphere: result.atmosphere,
+        macroBaseline: { ...get().runtime.tgt },
+        iters: result.iters,
+      });
     }
   },
 
   setMacros: (macros) => {
     const view = get().viewAnchor;
-    const { baseline, atmosphere } = buildMacroBaseline(macros, get().fractalId, view);
+    const { baseline, atmosphere, iters } = buildMacroBaseline(macros, get().fractalId, view);
 
     if (get().autoEvolve) {
-      set({ macros, macroBaseline: baseline });
+      set({ macros, macroBaseline: baseline, iters });
       Object.assign(get().atmosphereBaseline, atmosphere);
       const snap = {
         power: baseline.power,
@@ -292,12 +299,17 @@ export const useExplorerStore = create<ExplorerStore>((set, get) => ({
       Object.assign(get().runtime.cur, snap);
     } else {
       const result = applyMacrosToTarget(macros, get().fractalId, get().runtime.tgt, true);
-      set({ macros, atmosphere: result.atmosphere, macroBaseline: { ...get().runtime.tgt } });
+      set({
+        macros,
+        atmosphere: result.atmosphere,
+        macroBaseline: { ...get().runtime.tgt },
+        iters: result.iters,
+      });
     }
   },
 
   refreshMacroBaseline: () => {
-    const { baseline, atmosphere } = buildMacroBaseline(
+    const { baseline, atmosphere, iters } = buildMacroBaseline(
       get().macros,
       get().fractalId,
       get().viewAnchor,
@@ -305,7 +317,9 @@ export const useExplorerStore = create<ExplorerStore>((set, get) => ({
     Object.assign(get().macroBaseline, baseline);
     Object.assign(get().atmosphereBaseline, atmosphere);
     if (!get().autoEvolve) {
-      set({ atmosphere });
+      set({ atmosphere, iters });
+    } else {
+      set({ iters });
     }
   },
 
@@ -458,4 +472,5 @@ useExplorerStore.setState({
   atmosphereBaseline: { ...initResult.atmosphere },
   viewAnchor: initView,
   macroBaseline: { ...initial.runtime.tgt },
+  iters: initResult.iters,
 });

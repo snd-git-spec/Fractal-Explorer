@@ -21,6 +21,9 @@ const fractalShaderLoaders: Record<string, () => Promise<{ default: string }>> =
   kleinian: () => import('./shaders/fractals/kleinian.glsl?raw'),
   kifs: () => import('./shaders/fractals/kifs.glsl?raw'),
   kali: () => import('./shaders/fractals/kali.glsl?raw'),
+  'jerusalem-cube': () => import('./shaders/fractals/jerusalem-cube.glsl?raw'),
+  'penrose-quasicrystal': () => import('./shaders/fractals/penrose-quasicrystal.glsl?raw'),
+  'hyperbolic-kaleidoscope': () => import('./shaders/fractals/hyperbolic-kaleidoscope.glsl?raw'),
 };
 
 export async function loadFractalShaderSource(fractalId: FractalId): Promise<string> {
@@ -56,6 +59,24 @@ if (import.meta.hot) {
       './shaders/header.glsl?raw',
       './shaders/footer.glsl?raw',
       './shaders/vertex.glsl?raw',
+      './shaders/fractals/jerusalem-cube.glsl?raw',
+      './shaders/fractals/penrose-quasicrystal.glsl?raw',
+      './shaders/fractals/mandelbulb.glsl?raw',
+      './shaders/fractals/mandelbox.glsl?raw',
+      './shaders/fractals/nova.glsl?raw',
+      './shaders/fractals/menger.glsl?raw',
+      './shaders/fractals/apollonian.glsl?raw',
+      './shaders/fractals/dodecahedron.glsl?raw',
+      './shaders/fractals/sierpinski.glsl?raw',
+      './shaders/fractals/pseudo-kleinian.glsl?raw',
+      './shaders/fractals/kleinian-ifs.glsl?raw',
+      './shaders/fractals/quaternion-julia.glsl?raw',
+      './shaders/fractals/mandelbroth.glsl?raw',
+      './shaders/fractals/amazing-surf.glsl?raw',
+      './shaders/fractals/kleinian.glsl?raw',
+      './shaders/fractals/kifs.glsl?raw',
+      './shaders/fractals/kali.glsl?raw',
+      './shaders/fractals/hyperbolic-kaleidoscope.glsl?raw',
     ],
     () => {
       window.dispatchEvent(new Event('fractal-shader-hmr'));

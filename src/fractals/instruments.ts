@@ -60,22 +60,22 @@ export interface FractalInstrument {
 }
 
 const DEFAULT_WEIGHTS: MacroWeights = {
-  pulsePower: 0.8,
-  pulseBailout: 0.5,
-  pulseBright: 0.7,
-  pulseWarpX: 0.3,
-  pulseWarpY: 0.3,
-  depthPower: 0.2,
-  depthIters: 0.9,
+  pulsePower: 1.0,
+  pulseBailout: 0.85,
+  pulseBright: 0.75,
+  pulseWarpX: 0, // unused — Drift owns warp
+  pulseWarpY: 0,
+  depthPower: 0, // unused — Pulse owns shape
+  depthIters: 1.0,
   depthZoom: 0.6,
   driftSpeed: 1.0,
-  driftGlow: 0.8,
-  driftWarpX: 0.5,
-  driftWarpY: 0.5,
-  voidFov: 0.9,
+  driftGlow: 1.0,
+  driftWarpX: 1.0,
+  driftWarpY: 1.0,
+  voidFov: 1.0,
   voidFog: 1.0,
-  voidGamma: 0.8,
-  voidVignette: 0.7,
+  voidGamma: 0.9,
+  voidVignette: 1.0,
 };
 
 const DEFAULT_LABELS: ParamLabels = {
@@ -113,7 +113,7 @@ function inst(
 
 const INSTRUMENTS: Record<FractalId, FractalInstrument> = {
   0: inst({
-    labels: { power: 'Spikiness', bailout: 'Escape', cx: 'Lobe Twist', cy: 'Pole Tilt' },
+    labels: { power: 'Spikiness', bailout: 'Escape', cx: 'Lobe Spin', cy: 'Pole Stretch' },
     macroWeights: { pulsePower: 1.0, depthIters: 0.85, pulseWarpX: 0.85, pulseWarpY: 0.75, driftWarpX: 0.70, driftWarpY: 0.65 },
     snapshots: [
       { name: 'Neon Spire', macros: { pulse: 0.85, depth: 0.7, drift: 0.5, void: 0.35 }, camera: { power: 11, zoom: 2.5 }, palette: 1 },
@@ -170,11 +170,39 @@ const INSTRUMENTS: Record<FractalId, FractalInstrument> = {
     ],
   }),
   5: inst({
-    labels: { power: 'Pent Scale', bailout: 'Fold Depth', cx: 'Twist X', cy: 'Twist Y' },
-    macroWeights: { pulsePower: 0.75, pulseWarpX: 0.7, pulseWarpY: 0.7, depthIters: 0.75 },
+    labels: { power: 'Bloom', bailout: 'Open', cx: '5-Fold A', cy: '5-Fold B' },
+    macroWeights: {
+      pulsePower: 1.05,
+      pulseBailout: 0.95,
+      depthIters: 1.1,
+      depthZoom: 0,
+      driftWarpX: 1.25,
+      driftWarpY: 1.2,
+      voidFog: 0.45,
+      voidFov: 0.55,
+      voidVignette: 0.65,
+    },
+    remixRanges: {
+      pulse: [0.35, 0.9],
+      depth: [0.4, 0.95],
+      drift: [0.25, 0.75],
+      void: [0.2, 0.55],
+    },
     snapshots: [
-      { name: 'Pentagon', macros: { pulse: 0.5, depth: 0.8, drift: 0.25, void: 0.5 }, palette: 2 },
-      { name: 'Golden Fold', macros: { pulse: 0.65, depth: 0.7, drift: 0.5, void: 0.4 }, palette: 2 },
+      {
+        name: 'Pentagon',
+        macros: { pulse: 0.55, depth: 0.7, drift: 0.35, void: 0.28 },
+        camera: { zoom: 0.5, rotX: 0.55, rotY: 0.9, power: 8, bailout: 3, cx: 0, cy: 0 },
+        atmosphere: { fog: 0.28, fov: 1.35, gamma: 0.55, vignette: 0.65 },
+        palette: 2,
+      },
+      {
+        name: 'Golden Fold',
+        macros: { pulse: 0.7, depth: 0.85, drift: 0.5, void: 0.25 },
+        camera: { zoom: 0.5, rotX: 0.45, rotY: 1.1, power: 11, bailout: 4.2, cx: 0.55, cy: -0.4 },
+        atmosphere: { fog: 0.25, fov: 1.4, gamma: 0.55, vignette: 0.6 },
+        palette: 0,
+      },
     ],
   }),
   6: inst({
@@ -250,8 +278,8 @@ const INSTRUMENTS: Record<FractalId, FractalInstrument> = {
     labels: { power: 'Layer Scale', bailout: 'Surf Gap', cx: 'Fold Width', cy: 'Fold Depth' },
     macroWeights: { pulsePower: 0.85, depthIters: 0.75, depthZoom: 0.6, pulseWarpX: 0.7, pulseWarpY: 0.65, driftWarpX: 0.5, driftWarpY: 0.5 },
     snapshots: [
-      { name: 'Amazing', macros: { pulse: 0.6, depth: 0.7, drift: 0.45, void: 0.5 }, palette: 2 },
-      { name: 'Surf Layers', macros: { pulse: 0.75, depth: 0.85, drift: 0.35, void: 0.55 }, palette: 0 },
+      { name: 'Amazing', macros: { pulse: 0.6, depth: 0.7, drift: 0.45, void: 0.5 }, camera: { zoom: 0.2, rotX: 0.35, rotY: 0.55 }, palette: 2 },
+      { name: 'Surf Layers', macros: { pulse: 0.75, depth: 0.85, drift: 0.35, void: 0.55 }, camera: { zoom: 0.2, rotX: 0.4, rotY: 0.7 }, palette: 0 },
     ],
   }),
   12: inst({
@@ -296,6 +324,108 @@ const INSTRUMENTS: Record<FractalId, FractalInstrument> = {
       { name: 'Cavern', macros: { pulse: 0.45, depth: 0.5, drift: 0.5, void: 0.35 }, camera: { zoom: 2.8, rotX: 0.55, rotY: 0.7 }, palette: 0 },
       { name: 'Neon Vein', macros: { pulse: 0.65, depth: 0.45, drift: 0.7, void: 0.25 }, camera: { zoom: 2.5, rotX: 0.65, rotY: 0.9 }, palette: 1 },
       { name: 'Deep Kali', macros: { pulse: 0.55, depth: 0.6, drift: 0.4, void: 0.45 }, camera: { zoom: 3.4, rotX: 0.4, rotY: 0.5 }, palette: 3 },
+    ],
+  }),
+  15: inst({
+    labels: { power: 'Cross Ratio', bailout: 'Arm Thickness', cx: 'Cell Warp', cy: 'Fold Warp' },
+    macroWeights: {
+      pulsePower: 0.8,
+      pulseBailout: 0.7,
+      depthIters: 1.15,
+      depthZoom: 0.45,
+      pulseWarpX: 0.75,
+      pulseWarpY: 0.7,
+      voidFog: 0.45,
+      voidVignette: 0.65,
+    },
+    snapshots: [
+      {
+        name: 'Temple',
+        macros: { pulse: 0.45, depth: 1.0, drift: 0.3, void: 0.25 },
+        camera: { zoom: 2.4, rotX: 0.42, rotY: 0.75 },
+        atmosphere: { fog: 0.28, fov: 1.4, gamma: 0.55, vignette: 0.7 },
+        palette: 0,
+      },
+      {
+        name: 'Cross Void',
+        macros: { pulse: 0.65, depth: 1.0, drift: 0.55, void: 0.22 },
+        camera: { zoom: 2.1, rotX: 0.5, rotY: 0.95 },
+        atmosphere: { fog: 0.25, fov: 1.45, gamma: 0.55, vignette: 0.65 },
+        palette: 2,
+      },
+    ],
+  }),
+  16: inst({
+    labels: { power: 'Cavern Scale', bailout: 'Vein Depth', cx: 'Phason X', cy: 'Phason Y' },
+    macroWeights: {
+      pulsePower: 0.8,
+      pulseBailout: 0.75,
+      depthIters: 1.0,
+      driftWarpX: 1.0,
+      driftWarpY: 0.95,
+      driftGlow: 1.0,
+      voidFov: 0.7,
+      voidFog: 0.4,
+      voidVignette: 0.6,
+    },
+    snapshots: [
+      {
+        name: 'Cathedral',
+        macros: { pulse: 0.5, depth: 1.0, drift: 0.4, void: 0.25 },
+        camera: { zoom: 1.2, rotX: 0.5, rotY: 0.85 },
+        atmosphere: { fog: 0.28, fov: 1.45, gamma: 0.55, vignette: 0.65 },
+        palette: 3,
+      },
+      {
+        name: 'Phason Drift',
+        macros: { pulse: 0.65, depth: 1.0, drift: 0.7, void: 0.22 },
+        camera: { zoom: 1.2, rotX: 0.6, rotY: 1.1 },
+        atmosphere: { fog: 0.25, fov: 1.5, gamma: 0.55, vignette: 0.6 },
+        palette: 7,
+      },
+    ],
+  }),
+  17: inst({
+    labels: {
+      power: 'Mirror Boost',
+      bailout: 'Sphere Radius',
+      cx: 'Cusp Twist',
+      cy: 'Phason',
+    },
+    macroWeights: {
+      pulsePower: 0.85,
+      pulseBailout: 0.8,
+      pulseBright: 0.75,
+      depthIters: 1.15,
+      depthZoom: 0,
+      driftWarpX: 1.0,
+      driftWarpY: 0.95,
+      driftGlow: 1.0,
+      voidFov: 0.65,
+      voidFog: 0.25,
+      voidVignette: 0.5,
+    },
+    remixRanges: {
+      pulse: [0.25, 0.75],
+      depth: [0.45, 1.0],
+      drift: [0.2, 0.65],
+      void: [0.15, 0.4],
+    },
+    snapshots: [
+      {
+        name: 'Stained Glass',
+        macros: { pulse: 0.5, depth: 1.0, drift: 0.35, void: 0.18 },
+        camera: { zoom: 0.2, rotX: 0.4, rotY: 0.75 },
+        atmosphere: { fog: 0.18, fov: 1.4, gamma: 0.52, vignette: 0.55 },
+        palette: 3,
+      },
+      {
+        name: 'Infinite Cusp',
+        macros: { pulse: 0.65, depth: 1.0, drift: 0.5, void: 0.16 },
+        camera: { zoom: 0.2, rotX: 0.5, rotY: 0.95 },
+        atmosphere: { fog: 0.16, fov: 1.45, gamma: 0.52, vignette: 0.5 },
+        palette: 1,
+      },
     ],
   }),
 };

@@ -9,9 +9,9 @@ const SNAPSHOT_LERP = 0.12;
  * k = 1 - exp(-dt / TAU)  — same perceived speed at any frame rate.
  */
 // Keep this short — a long tau makes post-drag resume look frozen while lag rebuilds.
-const ROT_TAU   = 1.1;  // seconds — camera tracks orbit path
+const ROT_TAU   = 0.32;  // seconds — camera tracks orbit path (clearly alive)
 const PARAM_TAU = 1.8;  // seconds — shape morph catches up
-const COLOR_TAU = 4.5;  // seconds — hue eases slowly (avoid rapid flashing)
+const COLOR_TAU = 4.5;  // seconds — hue eases slowly (git mapping feel)
 const PAN_TAU   = 0.9;  // seconds — pan snaps back to centre
 
 function lerp(a: number, b: number, t: number): number {
@@ -51,6 +51,8 @@ export function lerpCameraState(
   }
   const rate = snapshotBoost ? SNAPSHOT_LERP : LERP;
   const k = Math.min(1, rate + dt * (snapshotBoost ? 1.2 : 0.8));
+  // Colour always eases slowly — Wild snaps shape but fades through hues
+  const colorK = 1 - Math.exp(-dt / COLOR_TAU);
   lerpField(state, k, 'rotX');
   lerpField(state, k, 'rotY');
   lerpField(state, k, 'zoom');
@@ -60,8 +62,8 @@ export function lerpCameraState(
   lerpField(state, k, 'bailout');
   lerpField(state, k, 'cx');
   lerpField(state, k, 'cy');
-  lerpField(state, k, 'glow');
-  lerpField(state, k, 'bright');
+  lerpField(state, colorK, 'glow');
+  lerpField(state, colorK, 'bright');
 }
 
 export class FpsCounter {

@@ -1,5 +1,5 @@
 import { memo, useMemo } from 'react';
-import { FRACTALS } from '@/fractals/registry';
+import { FRACTALS, getFractalsForMenu } from '@/fractals/registry';
 import type { FractalId } from '@/fractals/types';
 import { useExplorerStore } from '@/state/ExplorerStore';
 import { SnapshotStrip } from './SnapshotStrip';
@@ -11,6 +11,7 @@ export const FractalSelector = memo(function FractalSelector() {
   const { isDesktop, leftOpacity, leftMenu, toggleLeftMenu, closeLeftMenu } = useHudIntent();
 
   const current = useMemo(() => FRACTALS[fractalId], [fractalId]);
+  const menuFractals = useMemo(() => getFractalsForMenu(), []);
   // Click-only — do not auto-open on left-edge hover (that fought toggle + overlapped palette).
   const open = leftMenu === 'fractal';
 
@@ -45,7 +46,7 @@ export const FractalSelector = memo(function FractalSelector() {
       {open && (
         <div className="mt-[4px]">
           <div className="hud-fractal-list flex flex-col gap-[1px]">
-            {FRACTALS.map((f) => (
+            {menuFractals.map((f) => (
               <button
                 key={f.id}
                 type="button"

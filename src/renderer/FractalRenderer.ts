@@ -51,7 +51,7 @@ export class FractalRenderer {
   private static readonly ORBIT_RESUME_BOOST_MS = 2200;
   private static readonly ORBIT_RESUME_TAU = 0.28;
   /** Warm-start orbit phase so tgt is already off the anchor and chase is visible. */
-  private static readonly ORBIT_RESUME_PHASE = 1.6;
+  private static readonly ORBIT_RESUME_PHASE = 2.8;
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -90,19 +90,22 @@ export class FractalRenderer {
       () => {
         // Hard resume: reseed satellite orbit from the pose the user left.
         const state = this.store.getState();
-        const cur = state.runtime.cur;
+        const { cur, orbit } = state.runtime;
+        // Subtract live orbit offsets BEFORE setViewAnchor resets them — otherwise
+        // each release absorbs orbit into the baseline and zoom/aim ratchets away.
+        const zoom = Math.max(0.2, Math.min(12, cur.zoom - orbit.zoom));
         state.setViewAnchor({
-          rotX: cur.rotX,
-          rotY: cur.rotY,
-          zoom: cur.zoom,
+          rotX: cur.rotX - orbit.rotX,
+          rotY: cur.rotY - orbit.rotY,
+          zoom,
           panX: 0,
           panY: 0,
         });
         cur.panX = 0;
         cur.panY = 0;
+        cur.zoom = zoom;
+        state.runtime.tgt.zoom = zoom;
         state.runtime.orbitPhase = FractalRenderer.ORBIT_RESUME_PHASE;
-        // Apply orbit onto tgt immediately so the follow lerp has a delta now,
-        // not one frame later — avoids a post-drag dead stop.
         if (state.autoEvolve) {
           updateEvolveTargets({
             tgt: state.runtime.tgt,
@@ -121,12 +124,21 @@ export class FractalRenderer {
         } else {
           state.runtime.tgt.rotX = cur.rotX;
           state.runtime.tgt.rotY = cur.rotY;
-          state.runtime.tgt.zoom = cur.zoom;
+          state.runtime.tgt.zoom = zoom;
           state.runtime.tgt.panX = 0;
           state.runtime.tgt.panY = 0;
         }
         this.orbitResumeBoostUntil =
           performance.now() + FractalRenderer.ORBIT_RESUME_BOOST_MS;
+      },
+      // Wheel zoom: update baseline only (no orbit reseed / resume kick).
+      (zoom) => {
+        const state = this.store.getState();
+        const base = Math.max(0.2, Math.min(12, zoom - state.runtime.orbit.zoom));
+        state.setTargetParam('zoom', base);
+        // Keep the distance the wheel just set (baseline + current orbit breathe)
+        state.runtime.cur.zoom = zoom;
+        state.runtime.tgt.zoom = zoom;
       },
     );
     this.camera.attach();
@@ -343,13 +355,18 @@ export class FractalRenderer {
     const cache = this.shaderCache;
     if (!gl || !cache) return;
 
-    const program = await cache.get(fractalId);
-    this.currentFractalId = fractalId;
-    gl.useProgram(program);
-    this.uniforms = getUniformLocations(gl, program);
-    const aPos = gl.getAttribLocation(program, 'a_position');
-    gl.enableVertexAttribArray(aPos);
-    gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+    try {
+      const program = await cache.get(fractalId);
+      this.currentFractalId = fractalId;
+      gl.useProgram(program);
+      this.uniforms = getUniformLocations(gl, program);
+      const aPos = gl.getAttribLocation(program, 'a_position');
+      gl.enableVertexAttribArray(aPos);
+      gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+    } catch (err) {
+      console.error(`Failed to load fractal ${fractalId}:`, err);
+      // Leave previous program active so the loop doesn't hang forever
+    }
   }
 
   /** Recompile current fractal shader (GLSL HMR). */

@@ -29,6 +29,8 @@ export class CameraController {
     private getState: () => ExplorerRuntimeState,
     private onGestureStart?: () => void,
     private onGestureEnd?: () => void,
+    /** Wheel / committed zoom — sync baseline without orbit reseed. */
+    private onZoomCommit?: (zoom: number) => void,
   ) {}
 
   isGesturing(): boolean {
@@ -93,11 +95,12 @@ export class CameraController {
     }
   }
 
-  private applyZoom(nextZoom: number): void {
+  private applyZoom(nextZoom: number, commit = false): void {
     const runtime = this.getState();
-    const z = Math.max(1, Math.min(12, nextZoom));
+    const z = Math.max(0.2, Math.min(12, nextZoom));
     runtime.tgt.zoom = z;
     runtime.cur.zoom = z;
+    if (commit) this.onZoomCommit?.(z);
   }
 
   private orbitFromDelta(
@@ -157,15 +160,16 @@ export class CameraController {
 
   private onWheel = (e: WheelEvent): void => {
     e.preventDefault();
-    if (this.isDragging) {
-      const s = this.getState().tgt;
-      this.applyZoom(s.zoom * (1 + e.deltaY * 0.001));
-      return;
-    }
-    this.beginGesture('mouse');
-    const s = this.getState().tgt;
-    this.applyZoom(s.zoom * (1 + e.deltaY * 0.001));
-    this.endGesture();
+    // Do NOT begin/end a full orbit gesture — that reseeds the path every notch.
+    // Normalize trackpad vs mouse: cap step, use exponential scale.
+    let dy = e.deltaY;
+    if (e.deltaMode === 1) dy *= 16; // line → pixels-ish
+    if (e.deltaMode === 2) dy *= 64; // page
+    dy = Math.max(-80, Math.min(80, dy));
+    const factor = Math.exp(dy * 0.0018);
+    const z = this.getState().tgt.zoom * factor;
+    // While dragging, only update live zoom; commit on release.
+    this.applyZoom(z, !this.isDragging);
   };
 
   private onTouchStart = (e: TouchEvent): void => {
@@ -181,6 +185,8 @@ export class CameraController {
         e.touches[0].clientX - e.touches[1].clientX,
         e.touches[0].clientY - e.touches[1].clientY,
       );
+    } else {
+      this.lastTD = 0; // avoid stale pinch ratio when 2nd finger lands later
     }
   };
 
@@ -212,8 +218,10 @@ export class CameraController {
         e.touches[0].clientX - e.touches[1].clientX,
         e.touches[0].clientY - e.touches[1].clientY,
       );
-      if (this.lastTD > 0) {
-        this.applyZoom(this.getState().tgt.zoom * (this.lastTD / d));
+      if (this.lastTD > 8) {
+        // Clamp per-frame pinch so one noisy sample can't jump zoom to the rail
+        const ratio = Math.max(0.94, Math.min(1.06, this.lastTD / d));
+        this.applyZoom(this.getState().tgt.zoom * ratio);
       }
       this.lastTD = d;
       this.lastMX = (e.touches[0].clientX + e.touches[1].clientX) * 0.5;

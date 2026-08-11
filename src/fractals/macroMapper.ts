@@ -19,6 +19,17 @@ function lerp(a: number, b: number, t: number): number {
 export interface MacroResult {
   camera: Partial<CameraState>;
   atmosphere: AtmosphereState;
+  /** Detail iters driven by Depth dial — applied by the store. */
+  iters: number;
+}
+
+/** Map Depth dial → iteration count. Depth at 1.0 always hits max Detail (64). */
+export function macrosToIters(depth: number, fractalId: FractalId): number {
+  const w = getInstrument(fractalId).macroWeights.depthIters;
+  const d = ease(depth);
+  // Weight pulls mid-dial up/down; endpoints stay 8 ↔ 64
+  const t = Math.min(1, Math.pow(d, 1 / Math.max(w, 0.5)));
+  return Math.round(lerp(8, 64, t) / 2) * 2;
 }
 
 export function applyMacros(
@@ -32,29 +43,38 @@ export function applyMacros(
   const dr = ease(macros.drift);
   const v = ease(macros.void);
 
-  // cx/cy: centred at 0 when all macros are at default (0.5).
-  // pulse and drift each contribute a signed offset from 0.
-  const cxRaw = (p - 0.5) * w.pulseWarpX * 2.0 + (dr - 0.5) * w.driftWarpX * 2.0;
-  const cyRaw = (p - 0.5) * w.pulseWarpY * 2.0 + (dr - 0.5) * w.driftWarpY * 2.0;
+  // Pulse = shape only (power + bailout + brightness). No warp.
+  const powerT = Math.min(1, p * w.pulsePower);
+  const bailT = Math.min(1, p * w.pulseBailout);
+
+  // Drift = sole owner of phason/warp + colour shift
+  const cxRaw = (dr - 0.5) * w.driftWarpX * 2.4;
+  const cyRaw = (dr - 0.5) * w.driftWarpY * 2.4;
 
   const camera: Partial<CameraState> = {
-    power: lerp(3, 14, p * w.pulsePower + d * w.depthPower * 0.3),
-    bailout: lerp(1.2, 5.5, p * w.pulseBailout + d * 0.2),
-    bright: lerp(0.4, 2.5, p * w.pulseBright),
+    power: lerp(2.5, 14, powerT),
+    bailout: lerp(1.15, 5.5, bailT),
+    bright: lerp(0.45, 2.6, p * w.pulseBright),
     cx: Math.max(-1.2, Math.min(1.2, cxRaw)),
     cy: Math.max(-1.2, Math.min(1.2, cyRaw)),
-    glow: lerp(0, 1, dr * w.driftGlow + p * 0.3),
-    zoom: lerp(1.5, 8, d * w.depthZoom + v * 0.2),
+    glow: lerp(0, 1, dr * w.driftGlow),
+    // Zoom stays under view/orbit control — Depth no longer yanks framing
+    zoom: lerp(1.5, 8, d * w.depthZoom + v * 0.15),
   };
 
+/** Map Void dial — keep fog from ever crushing the scene to black. */
   const atmosphere: AtmosphereState = {
-    fov: lerp(1.0, 2.2, v * w.voidFov + 0.5 * (1 - v)),
-    fog: lerp(0.25, 1.5, v * w.voidFog),
-    gamma: lerp(0.45, 0.75, v * w.voidGamma),
-    vignette: lerp(0.5, 1.8, v * w.voidVignette),
+    fov: lerp(0.95, 2.0, v * w.voidFov),
+    fog: lerp(0.15, 0.85, v * w.voidFog),
+    gamma: lerp(0.45, 0.72, v * w.voidGamma),
+    vignette: lerp(0.35, 1.4, v * w.voidVignette),
   };
 
-  return { camera, atmosphere };
+  return {
+    camera,
+    atmosphere,
+    iters: macrosToIters(macros.depth, fractalId),
+  };
 }
 
 /** Build macro baseline from dials, preserving user-controlled view orientation. */
@@ -62,8 +82,8 @@ export function buildMacroBaseline(
   macros: MacroState,
   fractalId: FractalId,
   view: ViewAnchor,
-): { baseline: CameraState; atmosphere: AtmosphereState } {
-  const { camera, atmosphere } = applyMacros(macros, fractalId);
+): { baseline: CameraState; atmosphere: AtmosphereState; iters: number } {
+  const { camera, atmosphere, iters } = applyMacros(macros, fractalId);
   const baseline: CameraState = {
     ...DEFAULT_CAMERA,
     ...camera,
@@ -73,7 +93,7 @@ export function buildMacroBaseline(
     panY: view.panY,
     zoom: view.zoom,
   };
-  return { baseline, atmosphere };
+  return { baseline, atmosphere, iters };
 }
 
 export function applyMacrosToTarget(

@@ -1,5 +1,6 @@
 export type FractalId =
-  | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14;
+  | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14
+  | 15 | 16 | 17;
 
 export interface FractalMeta {
   id: FractalId;
@@ -33,6 +34,8 @@ export interface OrbitSeeds {
   elPhase: number;
   azRateScale: number;
   elRateScale: number;
+  /** +1 or -1 — seeds which yaw harmonics lead (path still wanders both ways) */
+  azDir: number;
 }
 
 export interface CameraOrbit {
@@ -55,6 +58,7 @@ const DEFAULT_SEEDS: OrbitSeeds = {
   elPhase: 0,
   azRateScale: 1,
   elRateScale: 1,
+  azDir: 1,
 };
 
 export const DEFAULT_ORBIT: CameraOrbit = {
@@ -77,6 +81,7 @@ export function seedOrbit(orbit: CameraOrbit): void {
     elPhase: Math.random() * Math.PI * 2,
     azRateScale: 0.65 + Math.random() * 0.85,
     elRateScale: 0.55 + Math.random() * 1.0,
+    azDir: Math.random() < 0.5 ? -1 : 1,
   };
 }
 
@@ -189,14 +194,14 @@ export const DEFAULT_VIEW_ANCHOR: ViewAnchor = {
 
 export const DEFAULT_MACROS: MacroState = {
   pulse: 0.5,
-  depth: 0.5,
+  depth: 1.0,
   drift: 0.5,
-  void: 0.5,
+  void: 0.3,
 };
 
 export const DEFAULT_ATMOSPHERE: AtmosphereState = {
   fov: 1.5,
-  fog: 0.7,
+  fog: 0.45,
   gamma: 0.55,
-  vignette: 1.0,
+  vignette: 0.85,
 };

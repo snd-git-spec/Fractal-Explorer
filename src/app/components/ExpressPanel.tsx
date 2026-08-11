@@ -74,27 +74,27 @@ function InstrumentBody() {
 
   return (
     <>
-      {autoEvolve ? (
+      {autoEvolve && (
         <>
           <EvolveCapsule speed={evolveSpeed} />
           <ParamSlider
             label="Zoom"
             value={live.zoom}
             onChange={(v) => setTargetParam('zoom', v)}
-            min={1}
+            min={0.2}
             max={12}
             step={0.05}
             format={(v) => v.toFixed(1)}
           />
         </>
-      ) : (
-        <div className="grid grid-cols-2 gap-x-[12px] gap-y-[14px] justify-items-center py-[4px]">
-          <MacroDial label="Pulse" value={macros.pulse} onChange={setMacroKey('pulse')} size={48} />
-          <MacroDial label="Depth" value={macros.depth} onChange={setMacroKey('depth')} size={48} />
-          <MacroDial label="Drift" value={macros.drift} onChange={setMacroKey('drift')} size={48} />
-          <MacroDial label="Void" value={macros.void} onChange={setMacroKey('void')} size={48} />
-        </div>
       )}
+
+      <div className="grid grid-cols-2 gap-x-[12px] gap-y-[14px] justify-items-center py-[4px]">
+        <MacroDial label="Pulse" value={macros.pulse} onChange={setMacroKey('pulse')} size={48} />
+        <MacroDial label="Depth" value={macros.depth} onChange={setMacroKey('depth')} size={48} />
+        <MacroDial label="Drift" value={macros.drift} onChange={setMacroKey('drift')} size={48} />
+        <MacroDial label="Void" value={macros.void} onChange={setMacroKey('void')} size={48} />
+      </div>
 
       <div className="mt-[10px]">
         <ParamSlider label="Detail" value={iters} onChange={setIters} min={2} max={64} step={2} format={(v) => v.toString()} />

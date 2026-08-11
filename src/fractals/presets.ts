@@ -10,20 +10,24 @@ export interface FractalCameraPreset {
 
 /** Per-fractal default framing — camera orbits the origin at these angles. */
 export const FRACTAL_CAMERA_PRESETS: Partial<Record<FractalId, FractalCameraPreset>> = {
-  0: { zoom: 2.2, rotX: 0.2, rotY: 0.0 },
+  0: { zoom: 1.4, rotX: 0.2, rotY: 0.0 },
   1: { zoom: 5.5, rotX: 0.45, rotY: 0.75 },
   2: { zoom: 4.2, rotX: 0.3, rotY: 0.5 },
   3: { zoom: 3.5, rotX: 0.3, rotY: 0.45 },
   4: { zoom: 1.8, rotX: 0.25, rotY: 0.4 },
-  5: { zoom: 2.0, rotX: 0.28, rotY: 0.48 },
+  5: { zoom: 0.5, rotX: 0.55, rotY: 0.9 },
   6: { zoom: 5.0, rotX: 0.3, rotY: 0.5 },
   7: { zoom: 3.2, rotX: 0.55, rotY: 0.85 },
   8: { zoom: 2.2, rotX: 0.22, rotY: 0.38 },
   9: { zoom: 3.2, rotX: 0.35, rotY: 0.55 },
   10: { zoom: 3.0, rotX: 0.2, rotY: 0.3 },
+  11: { zoom: 0.2, rotX: 0.35, rotY: 0.55 },
   12: { zoom: 4.5, rotX: 0.5, rotY: 0.8 },
   13: { zoom: 2.4, rotX: 0.25, rotY: 0.42 },
   14: { zoom: 2.8, rotX: 0.55, rotY: 0.7 },
+  15: { zoom: 2.4, rotX: 0.42, rotY: 0.75 },
+  16: { zoom: 1.2, rotX: 0.5, rotY: 0.85 },
+  17: { zoom: 0.2, rotX: 0.4, rotY: 0.75 },
 };
 
 export function applyFractalPreset(

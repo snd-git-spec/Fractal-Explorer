@@ -67,7 +67,7 @@ export function encodeSeed(state: {
   bytes[6] = clampByte(payload.m.void);
   bytes[7] = encodeFloat(payload.c.rotX, -1.5, 1.5);
   bytes[8] = encodeFloat(payload.c.rotY, -3.14, 3.14);
-  bytes[9] = encodeFloat(payload.c.zoom, 1, 12);
+  bytes[9] = encodeFloat(payload.c.zoom, 0.2, 12);
   bytes[10] = encodeFloat(payload.c.power, 2, 16);
   bytes[11] = encodeFloat(payload.c.bailout, 1, 6);
   bytes[12] = encodeFloat(payload.c.cx, -1.5, 1.5);
@@ -118,7 +118,7 @@ export function decodeSeed(seed: string): Partial<{
         ...DEFAULT_CAMERA,
         rotX: decodeFloat(bytes[7], -1.5, 1.5),
         rotY: decodeFloat(bytes[8], -3.14, 3.14),
-        zoom: decodeFloat(bytes[9], 1, 12),
+        zoom: decodeFloat(bytes[9], 0.2, 12),
         power: decodeFloat(bytes[10], 2, 16),
         bailout: decodeFloat(bytes[11], 1, 6),
         cx: decodeFloat(bytes[12], -1.5, 1.5),
