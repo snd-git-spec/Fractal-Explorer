@@ -9,7 +9,7 @@ const SNAPSHOT_LERP = 0.12;
  * k = 1 - exp(-dt / TAU)  — same perceived speed at any frame rate.
  */
 // Keep this short — a long tau makes post-drag resume look frozen while lag rebuilds.
-const ROT_TAU   = 0.32;  // seconds — camera tracks orbit path (clearly alive)
+const ROT_TAU   = 0.48;  // seconds — smooth global tour without whippy catch-up
 const PARAM_TAU = 1.8;  // seconds — shape morph catches up
 const COLOR_TAU = 4.5;  // seconds — hue eases slowly (git mapping feel)
 const PAN_TAU   = 0.9;  // seconds — pan snaps back to centre
