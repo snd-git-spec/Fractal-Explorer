@@ -3,6 +3,8 @@
 float sdePseudoKleinian(vec3 p, float size, vec3 cSize, vec3 c, int iters) {
   float def = 1.0;
   vec3 ap = p + 1.0;
+  float orbit = 0.0;
+  float ow = 1.0;
 
   for (int i = 0; i < 20; i++) {
     if (i >= iters) break;
@@ -20,8 +22,14 @@ float sdePseudoKleinian(vec3 p, float size, vec3 cSize, vec3 c, int iters) {
     def *= k;
 
     p += c;
+
+    float r = length(p);
+    float face = max(abs(p.x), max(abs(p.y), abs(p.z)));
+    orbit += ow * (0.55 * exp(-r * 1.1) + 0.45 * exp(-face * 1.4));
+    ow *= 0.7;
   }
 
+  gOrbit = clamp(orbit * 0.55, 0.0, 1.0);
   // Plane trap — flat cuts + folded ridges (not spherical blobs)
   return 0.5 * abs(p.z) / max(abs(def), 0.0001);
 }

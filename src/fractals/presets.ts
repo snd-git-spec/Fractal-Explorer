@@ -15,7 +15,7 @@ export const FRACTAL_CAMERA_PRESETS: Partial<Record<FractalId, FractalCameraPres
   2: { zoom: 4.2, rotX: 0.3, rotY: 0.5 },
   3: { zoom: 3.5, rotX: 0.3, rotY: 0.45 },
   4: { zoom: 1.8, rotX: 0.25, rotY: 0.4 },
-  5: { zoom: 0.5, rotX: 0.55, rotY: 0.9 },
+  5: { zoom: 0.45, rotX: 0.55, rotY: 0.9 },
   6: { zoom: 5.0, rotX: 0.3, rotY: 0.5 },
   7: { zoom: 3.2, rotX: 0.55, rotY: 0.85 },
   8: { zoom: 2.2, rotX: 0.22, rotY: 0.38 },

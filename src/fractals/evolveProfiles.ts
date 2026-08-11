@@ -338,26 +338,34 @@ function morphFractalShape(
       return;
     }
 
-    // Dodeca: continuous pentagonal bloom
+    // Dodeca: classic IFS bloom + stretch centre
+    const ampD = 0.85 + 0.15 * a;
+    const ph = morphP * 1.1;
     tgt.power = clamp(
-      baseline.power + (s1 * 2.6 + s2 * 1.5 + s5 * 0.9) * amp,
-      Math.max(4.8, baseline.power - 3.0),
-      Math.min(12.2, baseline.power + 3.6),
+      8.0 +
+        Math.sin(ph) * 3.4 * ampD +
+        Math.sin(ph * 0.55 + 1.0) * 1.6 * ampD,
+      5.0,
+      12.5,
     );
     tgt.bailout = clamp(
-      baseline.bailout + (s2 * 0.85 + s4 * 0.65 + s3 * 0.4) * amp,
-      Math.max(1.6, baseline.bailout - 1.15),
-      Math.min(4.8, baseline.bailout + 1.35),
+      2.8 +
+        Math.sin(ph * 0.65 + 0.4) * 1.05 * ampD +
+        Math.cos(ph * 0.95 + 1.4) * 0.55 * ampD,
+      1.6,
+      4.5,
     );
     tgt.cx = clamp(
-      baseline.cx + (s1 * 0.48 + s4 * 0.36 + s3 * 0.22) * amp,
-      -0.88,
-      0.88,
+      Math.sin(ph * 0.42 + 0.1) * 0.8 * ampD +
+        Math.cos(ph * 0.78 + 1.4) * 0.42 * ampD,
+      -1.0,
+      1.0,
     );
     tgt.cy = clamp(
-      baseline.cy + (s2 * 0.48 + s1 * 0.3 + s5 * 0.28) * amp,
-      -0.88,
-      0.88,
+      Math.sin(ph * 0.38 + 1.9) * 0.75 * ampD +
+        Math.sin(ph * 0.8 + 0.5) * 0.4 * ampD,
+      -1.0,
+      1.0,
     );
     return;
   }

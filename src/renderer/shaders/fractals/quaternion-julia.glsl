@@ -27,14 +27,22 @@ float sdeQuatJulia(vec3 pos, vec4 c, float ax, float ay, float az, int iters) {
 
   // Analytic derivative for a proper DE (not an orbit trap)
   vec4 qp = vec4(1.0, 0.0, 0.0, 0.0);
+  float orbit = 0.0;
+  float ow = 1.0;
 
   for (int i = 0; i < 32; i++) {
     if (i >= iters) break;
     qp = 2.0 * qmul(q, qp);
     q  = qmul(q, q) + c;
+
+    float r = length(q);
+    orbit += ow * exp(-r * 1.1);
+    ow *= 0.7;
+
     if (dot(q, q) > 16.0) break;
   }
 
+  gOrbit = clamp(orbit * 0.55, 0.0, 1.0);
   float rr = length(q);
   // Slightly thicker surface so the vast structure reads clearly at distance
   return 0.45 * log(max(rr, 0.0001)) * rr / max(length(qp), 0.0001);

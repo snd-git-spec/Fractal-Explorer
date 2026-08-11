@@ -29,7 +29,7 @@ const MORPH: Record<FractalId, EvolveMorphConfig> = {
   2: { ...BASE, powerMul: 1.8, bailoutMul: 1.6, warpMul: 2.4, detailMul: 0.5 },
   3: { ...BASE, powerMul: 3.0, bailoutMul: 2.0, warpMul: 2.6, detailMul: 2.8 },
   4: { ...BASE, powerMul: 3.2, bailoutMul: 1.9, warpMul: 2.5, detailMul: 2.6 },
-  5: { ...BASE, morphRate: 0.052, powerMul: 1.0, bailoutMul: 1.0, warpMul: 1.0, detailMul: 1.0 },
+  5: { ...BASE, morphRate: 0.18, powerMul: 1.0, bailoutMul: 1.0, warpMul: 1.0, detailMul: 1.6 },
   6: { ...BASE, powerMul: 3.0, bailoutMul: 1.9, warpMul: 2.6, detailMul: 2.8 },
   // PK: Julia C + plane trap snap hard when harmonics align — slower rate, softer amps
   7: {

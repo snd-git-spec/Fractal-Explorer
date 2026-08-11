@@ -4,6 +4,8 @@
 // by scale^n gives the correct distance estimate everywhere — no cap needed.
 // (Capping at 4 makes void SDE = d×scale^(n-4) ≈ d×80000 → rays overshoot → empty.)
 float sdeOctahedralIFS(vec3 p, float scale, int iters) {
+  float orbit = 0.0;
+  float ow = 1.0;
   for (int i = 0; i < 16; i++) {
     if (i >= iters) break;
     p = abs(p);
@@ -13,7 +15,13 @@ float sdeOctahedralIFS(vec3 p, float scale, int iters) {
     if (p.y < p.z) { tmp = p.y; p.y = p.z; p.z = tmp; }
     p = p * scale - vec3(scale - 1.0, 0.0, 0.0);
     if (p.z < -(scale - 1.0) * 0.5) p.z += scale - 1.0;
+
+    float r = length(p);
+    float face = max(p.x, max(p.y, p.z));
+    orbit += ow * (0.55 * exp(-r * 1.1) + 0.45 * exp(-face * 1.4));
+    ow *= 0.7;
   }
+  gOrbit = clamp(orbit * 0.55, 0.0, 1.0);
   return (length(p) - 0.35) * pow(scale, -float(iters));
 }
 

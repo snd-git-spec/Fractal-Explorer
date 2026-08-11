@@ -19,6 +19,8 @@ float sdeNova(vec3 pos, vec2 cp, float bailout, int iters) {
   vec4 c = vec4(cp.x * 0.42, cp.y * 0.42, cp.x * 0.08, cp.y * 0.08);
   float minD = 1e5;
   float dr = 1.0;
+  float orbit = 0.0;
+  float ow = 1.0;
 
   for (int i = 0; i < 12; i++) {
     if (i >= iters) break;
@@ -40,9 +42,14 @@ float sdeNova(vec3 pos, vec2 cp, float bailout, int iters) {
     float d2 = length(z - vec4(-0.5, -0.866, 0.0, 0.0));
     minD = min(minD, min(d0, min(d1, d2)));
 
+    float r = length(z);
+    orbit += ow * (0.55 * exp(-r * 1.1) + 0.45 * exp(-min(d0, min(d1, d2)) * 1.4));
+    ow *= 0.7;
+
     if (dot(z, z) > bailout * bailout) break;
   }
 
+  gOrbit = clamp(orbit * 0.55, 0.0, 1.0);
   // Hard floor prevents ray-stall blank screens inside basins
   float de = max(minD / max(dr, 0.5) * 0.40, 0.0025);
   return max(de, sphereD);

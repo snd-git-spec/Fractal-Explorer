@@ -3,6 +3,8 @@ float sdeAmazingSurf(vec3 pos, float scale, float minR, int iters) {
   float Dd = 1.0;
   float minRR = max(minR * minR, 0.001);
   float maxRR = 1.0;
+  float orbit = 0.0;
+  float ow = 1.0;
   for (int i = 0; i < 16; i++) {
     if (i >= iters) break;
     p.x = clamp(p.x, -1.0, 1.0) * 2.0 - p.x;
@@ -13,8 +15,15 @@ float sdeAmazingSurf(vec3 pos, float scale, float minR, int iters) {
     else if (rr < maxRR) { float k = maxRR / rr; p *= k; Dd *= k; }
     p = p * scale + pos;
     Dd = Dd * abs(scale) + 1.0;
+
+    float r = length(p);
+    float face = max(abs(p.x), max(abs(p.y), abs(p.z)));
+    orbit += ow * (0.55 * exp(-r * 1.1) + 0.45 * exp(-face * 1.4));
+    ow *= 0.7;
+
     if (dot(p, p) > 256.0) break;
   }
+  gOrbit = clamp(orbit * 0.55, 0.0, 1.0);
   return length(p) / max(abs(Dd), 0.0001);
 }
 

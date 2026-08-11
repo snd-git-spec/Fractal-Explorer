@@ -61,10 +61,7 @@ float sdePenroseCavern(vec3 p, vec3 param, float twist, int iters) {
   float d = smin(sheets, vol, 0.22);
   d = mix(d, sheets, 0.28);
 
-  gOrbit = clamp(trapCol, 0.0, 1.0);
-  float planeId =
-    d1 * 0.17 + d2 * 0.15 + d3 * 0.17 + d4 * 0.15 + d5 * 0.18 + d6 * 0.18;
-  gOrbit = clamp(mix(gOrbit, fract(planeId * 2.5 + trapCol + length(p) * 0.2), 0.55), 0.0, 1.0);
+  gOrbit = clamp(trapCol * 0.7 + length(p) * 0.08, 0.0, 1.0);
   return d * abs(scale) * 0.22;
 }
 

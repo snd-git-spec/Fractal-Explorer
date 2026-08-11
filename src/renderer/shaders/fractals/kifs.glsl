@@ -2,6 +2,8 @@
 // Keeps the known-good period-2 framing so the default orbit camera sees structure.
 float sdeKIFS(vec3 p, float scale, float twist, int iters) {
   float ct = cos(twist), st = sin(twist);
+  float orbit = 0.0;
+  float ow = 1.0;
 
   for (int i = 0; i < 14; i++) {
     if (i >= iters) break;
@@ -19,7 +21,13 @@ float sdeKIFS(vec3 p, float scale, float twist, int iters) {
 
     p = p * scale - vec3(scale - 1.0, 0.0, 0.0);
     if (p.z < -(scale - 1.0) * 0.5) p.z += scale - 1.0;
+
+    float r = length(p);
+    float face = max(p.x, max(p.y, p.z));
+    orbit += ow * (0.55 * exp(-r * 1.1) + 0.45 * exp(-face * 1.4));
+    ow *= 0.7;
   }
+  gOrbit = clamp(orbit * 0.55, 0.0, 1.0);
   return (length(p) - 0.35) * pow(scale, -float(iters));
 }
 

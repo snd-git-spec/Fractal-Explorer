@@ -1,4 +1,6 @@
 float sdeSierpinski(vec3 p, float sc, vec3 va, vec3 vb, vec3 vc, vec3 vd, int iters) {
+  float orbit = 0.0;
+  float ow = 1.0;
   for (int i = 0; i < 12; i++) {
     if (i >= iters) break;
     vec3 cv = va;
@@ -7,7 +9,12 @@ float sdeSierpinski(vec3 p, float sc, vec3 va, vec3 vb, vec3 vc, vec3 vd, int it
     dd = length(p - vc); if (dd < md) { md = dd; cv = vc; }
     dd = length(p - vd); if (dd < md) { cv = vd; }
     p = sc * p - cv * (sc - 1.0);
+
+    float r = length(p);
+    orbit += ow * exp(-r * 1.1);
+    ow *= 0.7;
   }
+  gOrbit = clamp(orbit * 0.55, 0.0, 1.0);
   return length(p) * pow(sc, -float(iters));
 }
 

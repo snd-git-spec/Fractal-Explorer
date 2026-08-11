@@ -88,46 +88,42 @@ vec3 palette(float t) {
 // that write it (mandelbulb, mandelbox), or the untouched sentinel (1e5) on ones that don't.
 // hasTrap gates it out cleanly instead of polluting phase with the sentinel value.
 float formPhase(vec3 p, float ao, float tHit, float trapRaw) {
-  float r = length(p);
   float hasTrap = step(trapRaw, 1000.0);
   float trap = hasTrap * clamp(trapRaw, 0.0, 1.0);
 
-  // Smooth escape trap dominates where available — it is continuous even where
-  // p/normals jump at fold boundaries. Without it, fall back to the old form-locked mix.
-  float wTrap  = 0.55 * hasTrap;
-  float wAo    = mix(0.35, 0.20, hasTrap);
-  float wDepth = mix(0.35, 0.15, hasTrap);
-  float wY     = mix(0.30, 0.10, hasTrap);
+  // Trap-led when available. Without it, prefer smooth depth/height over noisy AO
+  // (AO×palette was the sparkly topo-map look on KIFS / Apollonian / etc.).
+  float wTrap  = 0.62 * hasTrap;
+  float wAo    = mix(0.12, 0.08, hasTrap);
+  float wDepth = mix(0.38, 0.14, hasTrap);
+  float wY     = mix(0.22, 0.08, hasTrap);
+  float wRad   = mix(0.28, 0.08, hasTrap);
 
-  // Depth range scales with camera distance so the visible object's hit-distance
-  // spread lands in the useful part of the ramp at any zoom level, instead of
-  // clustering near one end (which read as "solid colour").
   float t = 0.0;
   t += wTrap * trap;
   t += wAo * (1.0 - ao);
-  t += wDepth * smoothstep(u_zoom * 0.25, u_zoom * 1.35, tHit);
-  t += wY * smoothstep(-1.6, 1.6, p.y);
+  t += wDepth * smoothstep(u_zoom * 0.2, u_zoom * 1.45, tHit);
+  t += wY * smoothstep(-1.8, 1.8, p.y);
+  t += wRad * smoothstep(u_zoom * 0.12, u_zoom * 2.2, length(p));
   return clamp(t, 0.0, 1.0);
 }
 
 vec3 surfaceTint(vec3 p, vec3 nor, float ao, float tHit, float trapRaw, out float phaseOut, out float hueSpinOut) {
   float t = formPhase(p, ao, tHit, trapRaw);
   phaseOut = t;
-  // Raymarched near-boundary points cluster the escape trap near 1.0 (that's
-  // inherent to hitting an iso-surface, not a bug) — which flattened Full Spectrum
-  // and starved themed palettes of variety. Spin hue through a few extra smooth
-  // laps from local surface detail to restore strong gradients, fully seam-free
-  // (see hueWalk). AO is available on every fractal, so this isn't limited to the
-  // two that write a trap — it's universal.
   float hasTrap = step(trapRaw, 1000.0);
   float trapVal = clamp(trapRaw, 0.0, 1.0);
-  float spinSrc = mix(1.0 - ao, trapVal, hasTrap);
-  // u_colorShift (glow) — seam-free global hue tour; tracks evolve / morph
-  float hueSpin = fract(spinSrc * 6.0 + u_colorShift * 0.38);
+  // Smooth geometric spin fallback — never AO*6 (that speckled Full Spectrum)
+  float geo =
+    0.5 +
+    0.5 * sin(length(p) * 0.55 + p.y * 0.35 + nor.y * 0.4);
+  float spinSrc = mix(geo, trapVal, hasTrap);
+  // Mild laps + glow tour; enough variety without rainbow noise
+  float hueSpin = fract(spinSrc * 2.0 + u_colorShift * 0.42);
   hueSpinOut = hueSpin;
   vec3 a = paletteAt(u_palette, t, hueSpin);
   vec3 b = paletteAt(u_palette, clamp(t + 0.08, 0.0, 1.0), hueSpin);
-  return mix(a, b, 0.30);
+  return mix(a, b, 0.28);
 }
 
 

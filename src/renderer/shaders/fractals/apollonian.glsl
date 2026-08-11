@@ -1,5 +1,7 @@
 float sdeApollonian(vec3 p, float scale, int iters) {
   float s = 1.0;
+  float orbit = 0.0;
+  float ow = 1.0;
   for (int i = 0; i < 32; i++) {
     if (i >= iters) break;
     p = -1.0 + 2.0 * fract(0.5 * p + 0.5);
@@ -8,8 +10,14 @@ float sdeApollonian(vec3 p, float scale, int iters) {
     float k = max(scale / max(r2, 0.0001), 1.0);
     p *= k;
     s *= k;
+
+    float r = length(p);
+    orbit += ow * exp(-r * 1.1);
+    ow *= 0.7;
+
     if (s > 1e6) break;
   }
+  gOrbit = clamp(orbit * 0.55, 0.0, 1.0);
   // Spherical distance — gives 3D tunnel / sphere-packing geometry
   return length(p) / max(s, 0.0001);
 }
