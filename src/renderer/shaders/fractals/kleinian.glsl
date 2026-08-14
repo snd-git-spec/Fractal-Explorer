@@ -1,87 +1,92 @@
-// Kleinian Group — box-fold + sphere inversion × scale.
-// Plane-led DE = corridors/webs (Mandelbox stays the cubic sponge).
-// S = ⋃_k sc^k · K — same corridor web at every size (inward + outward).
+// Kleinian-style IFS — recursive box-fold × sphere inversion (Mandelbox family).
+// Sparse + grand: high scale opens monumental voids; L∞ shells tile forever.
 
-float sdeKleinian(vec3 p, float scale, float cs, float minR, float maxR, int iters) {
+float sdeKleinian(vec3 p, float scale, float fold, float minR, float fixedR, int iters) {
   float DEf = 1.0;
-  vec3 off = vec3(scale - 1.0, (scale - 1.0) * 0.9, (scale - 1.0) * 0.5);
+  vec3 offset = p;
   float orbit = 0.0;
+  float faceAcc = 0.0;
   float ow = 1.0;
+  float mn2 = minR * minR;
+  float fx2 = fixedR * fixedR;
 
-  for (int i = 0; i < 14; i++) {
+  for (int i = 0; i < 18; i++) {
     if (i >= iters) break;
 
-    p = clamp(p, -cs, cs) * 2.0 - p;
+    p = clamp(p, -fold, fold) * 2.0 - p;
 
     float r2 = dot(p, p);
-    float mn2 = minR * minR;
-    float mx2 = maxR * maxR;
     if (r2 < mn2) {
-      float k = mx2 / mn2;
+      float k = fx2 / mn2;
       p *= k;
       DEf *= k;
-    } else if (r2 < mx2) {
-      float k = mx2 / r2;
+    } else if (r2 < fx2) {
+      float k = fx2 / r2;
       p *= k;
       DEf *= k;
     }
 
-    p = p * scale - off;
-    DEf *= abs(scale);
+    p = p * scale + offset;
+    DEf = DEf * abs(scale) + 1.0;
 
-    if (DEf > 600.0) {
-      p *= 600.0 / DEf;
-      DEf = 600.0;
-      break;
-    }
+    float rEnd = length(p);
+    if (DEf > 1e5 || rEnd > 100.0) break;
 
-    float r = length(p);
     float face = max(abs(p.x), max(abs(p.y), abs(p.z)));
-    orbit += ow * (0.55 * exp(-r * 1.05) + 0.45 * exp(-face * 1.3));
-    ow *= 0.72;
+    orbit += ow * (0.5 * exp(-rEnd * 0.75) + 0.5 * exp(-face * 0.9));
+    faceAcc += ow * (0.2 + 0.8 * smoothstep(0.0, 3.0, face));
+    ow *= 0.7;
   }
 
   gOrbit = clamp(orbit * 0.55, 0.0, 1.0);
+  gFace = clamp(faceAcc * 0.85, 0.0, 1.0);
 
-  float dPln = abs(p.z) / max(DEf, 1e-4);
-  float dSph = abs(length(p) - abs(scale - 1.0)) / max(DEf, 1e-4);
-  return 0.7 * mix(dSph, dPln, 0.78);
+  // Slightly thick DE — sparse beams still read as solid architecture
+  return 0.62 * (length(p) - abs(scale - 1.0)) / max(abs(DEf), 1e-4);
 }
 
 float sceneSDE(vec3 p) {
   int it = int(u_iter);
-  if (it > 11) it = 11;
-  if (it < 5) it = 5;
+  if (it > 14) it = 14;
+  if (it < 6) it = 6;
 
-  // Architectural band (avoids foam collapse above ~2.2)
-  float sc = mix(1.55, 2.0, clamp((u_power - 2.5) / 12.0, 0.0, 1.0));
-  float cs = mix(0.85, 1.15, clamp((u_bailout - 1.0) / 5.0, 0.0, 1.0));
-  vec2 j = abs(clamp(u_jc, vec2(-1.0), vec2(1.0)));
-  float minR = mix(0.22, 0.38, j.x);
-  float maxR = mix(0.55, 0.88, j.y);
+  // Sparse grand band — high scale = vast voids between recursive ribs
+  float tPow = clamp((u_power - 2.5) / 12.0, 0.0, 1.0);
+  float tBail = clamp((u_bailout - 1.0) / 5.0, 0.0, 1.0);
+  float sc = mix(2.15, 2.95, tPow);
+  float fold = mix(1.15, 1.55, tBail);
 
-  float k = 0.9;
-  p *= k;
+  vec2 j = clamp(u_jc, vec2(-0.9), vec2(0.9));
+  // Larger sphere-fold cavity → emptier halls
+  float minR = mix(0.22, 0.48, 0.5 + 0.5 * j.x);
+  float fixedR = mix(1.05, 1.45, 0.5 + 0.5 * j.y);
+  fixedR = max(fixedR, minR + 0.45);
 
-  // Full self-similarity: fold any point into shell [R, R·sc)
-  // so measuring K once = every scaled copy of K to ∞ (zoom out and in).
-  float R = 1.35;
-  float scale = 1.0;
+  vec3 q = p + vec3(j.x, j.y, -j.x * 0.25 + j.y * 0.15) * 0.16;
+
+  // Smaller world shrink → bigger, more monumental solid in frame
+  float k = 1.55;
+  q *= k;
+
+  // Wide shells — generations feel like vast nested chambers
+  float Rfill = mix(2.2, 3.1, tPow);
+  float R = Rfill / sc;
+  float gen = 1.0;
   for (int i = 0; i < 16; i++) {
-    float r = length(p);
-    if (r >= R * sc) {
-      p /= sc;
-      scale *= sc;
-    } else if (r < R) {
-      p *= sc;
-      scale /= sc;
+    float m = max(abs(q.x), max(abs(q.y), abs(q.z)));
+    if (m >= R * sc) {
+      q /= sc;
+      gen *= sc;
+    } else if (m < R) {
+      q *= sc;
+      gen /= sc;
     } else {
       break;
     }
   }
 
-  float deep = clamp(log(1.0 / max(scale, 1e-4)) / log(sc), 0.0, 4.0);
-  it = int(min(float(it) + deep, 14.0));
+  float deep = clamp(log(1.0 / max(gen, 1e-4)) / log(sc), 0.0, 4.0);
+  it = int(min(float(it) + deep, 16.0));
 
-  return sdeKleinian(p, sc, cs, minR, maxR, it) * scale / k;
+  return sdeKleinian(q, sc, fold, minR, fixedR, it) * gen / k;
 }

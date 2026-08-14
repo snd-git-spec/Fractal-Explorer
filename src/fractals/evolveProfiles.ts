@@ -52,7 +52,7 @@ function orbitPace(fractalId: FractalId, zoom: number): number {
   if (fractalId === 5) return byZoom * 0.72; // Dodeca — readable shell dive + yaw (was near-frozen)
   if (fractalId === 16) return byZoom * 0.28; // Penrose — close φ-caverns read motion hot
   if (fractalId === 17) return byZoom * 0.38; // hyperbolic FOV reads motion hot
-  if (fractalId === 18) return byZoom * 0.48;
+  if (fractalId === 18) return byZoom * 0.22; // Tidefold — close dive reads motion hot; slow grand tour
   if (fractalId === 15 || DENSE_ORBIT_IDS.has(fractalId)) {
     return byZoom * 0.42;
   }
@@ -76,6 +76,9 @@ const GOLDEN = 0.6180339887;
 const POLE_MAX = 1.48;
 /** Dodeca: stay off the poles so the tour glides through shells, not through the solid. */
 const DODECA_POLE_MAX = 0.72;
+
+/** Tidefold: stay mid-latitudes — caverns read better than pole punches. */
+const TIDEFOLD_POLE_MAX = 0.95;
 
 /** Align orbit so the next frames continue from this pitch (no jump). */
 export function syncSphereOrbitToPitch(orbit: CameraOrbit, rotX: number): void {
@@ -162,6 +165,26 @@ function sphereRates(
     return { spin, elOmega, zoomOmega, zoomAmp };
   }
 
+  // Tidefold: spin-led wandering tour (not a straight meridian skim)
+  if (fractalId === 18) {
+    const spin =
+      lerp(0.038, 0.058, i) *
+      d *
+      (0.95 + 0.35 * seeds.azRateScale) *
+      (1 +
+        0.35 * Math.sin(pathTime * 0.041 + seeds.azOffset) +
+        0.22 * Math.sin(pathTime * 0.027 * GOLDEN + 1.3) +
+        0.14 * Math.sin(pathTime * 0.063 + seeds.zoomPhase));
+    // Latitude slower than yaw so path curves instead of sliding up a line
+    const elOmega =
+      lerp(0.016, 0.028, i) *
+      (0.9 + 0.35 * seeds.elRateScale) *
+      (1 + 0.2 * Math.sin(pathTime * 0.019 + seeds.azOffset));
+    const zoomOmega = lerp(0.012, 0.02, i);
+    const zoomAmp = 0.085 + i * 0.04;
+    return { spin, elOmega, zoomOmega, zoomAmp };
+  }
+
   // Slow longitude — full meridians over minutes, not seconds
   const spinBase =
     lerp(0.022, 0.036, i) * (0.85 + 0.25 * seeds.azRateScale);
@@ -222,6 +245,24 @@ function advanceFreeSphereOrbit(
       (Math.sin(zPh) * zoomAmp * 0.55 +
         Math.sin(zPh * 1.618 + 0.7) * zoomAmp * 0.28 +
         Math.sin(zPh * 0.37 + 1.9) * zoomAmp * 0.12);
+  } else if (fractalId === 18) {
+    // Triple incommensurate pitch + yaw wobble → curved path, not a straight skim
+    const e1 = Math.sin(orbit.seeds.elPhase);
+    const e2 = Math.sin(orbit.seeds.elPhase * (1.0 + GOLDEN) + orbit.seeds.azOffset);
+    const e3 = Math.sin(orbit.seeds.elPhase * GOLDEN * 2.7 + pathTime * 0.031);
+    const e4 = Math.sin(orbit.seeds.elPhase * 0.37 + pathTime * 0.017 + 2.1);
+    const lat = clamp(0.42 * e1 + 0.28 * e2 + 0.18 * e3 + 0.12 * e4, -1, 1);
+    orbit.rotX = TIDEFOLD_POLE_MAX * lat;
+    // Extra yaw weave on top of continuous spin
+    orbit.rotY =
+      orbit.azimuth +
+      Math.sin(pathTime * 0.033 + orbit.seeds.azOffset) * 0.55 +
+      Math.sin(pathTime * 0.019 * GOLDEN + 1.7) * 0.32;
+    const zPh = orbit.seeds.zoomPhase;
+    orbit.zoom =
+      Math.sin(zPh) * zoomAmp * 0.55 +
+      Math.sin(zPh * 1.618 + 0.8) * zoomAmp * 0.28 +
+      Math.sin(zPh * 0.41 + 1.4) * zoomAmp * 0.17;
   } else {
     // Dual incommensurate latitudes → dense sphere covering
     const e1 = Math.sin(orbit.seeds.elPhase);
@@ -370,78 +411,87 @@ function morphFractalShape(
     return;
   }
 
-  // Pseudo-Kleinian / Kleinian: crawl a safe cathedral band (never foam extremes)
-  if (fractalId === 7 || fractalId === 12) {
+  // Pseudo-Kleinian: crawl a safe cathedral band (never foam extremes)
+  if (fractalId === 7) {
     const amp = 0.55 + 0.25 * a;
     const ph = morphP * 0.85;
-    if (fractalId === 7) {
-      tgt.power = clamp(
-        6.5 + Math.sin(ph) * 1.8 * amp + Math.sin(ph * 0.55 + 1.1) * 0.9 * amp,
-        4.5,
-        9.5,
-      );
-      tgt.bailout = clamp(
-        2.3 + Math.sin(ph * 0.7 + 0.4) * 0.7 * amp + Math.cos(ph * 1.05 + 1.5) * 0.4 * amp,
-        1.6,
-        3.4,
-      );
-      tgt.cx = clamp(
-        Math.sin(ph * 0.42 + 0.2) * 0.45 * amp + Math.cos(ph * 0.8 + 1.3) * 0.22 * amp,
-        -0.65,
-        0.65,
-      );
-      tgt.cy = clamp(
-        Math.sin(ph * 0.38 + 1.7) * 0.42 * amp + Math.sin(ph * 0.9 + 0.5) * 0.2 * amp,
-        -0.65,
-        0.65,
-      );
-    } else {
-      tgt.power = clamp(
-        6.0 + Math.sin(ph) * 1.6 * amp + Math.sin(ph * 0.6 + 0.9) * 0.8 * amp,
-        4.0,
-        9.0,
-      );
-      tgt.bailout = clamp(
-        2.2 + Math.sin(ph * 0.65 + 0.5) * 0.65 * amp + Math.cos(ph * 0.95 + 1.2) * 0.35 * amp,
-        1.5,
-        3.2,
-      );
-      tgt.cx = clamp(
-        Math.sin(ph * 0.4 + 0.15) * 0.4 * amp + Math.cos(ph * 0.75 + 1.4) * 0.2 * amp,
-        -0.6,
-        0.6,
-      );
-      tgt.cy = clamp(
-        Math.sin(ph * 0.36 + 1.8) * 0.38 * amp + Math.sin(ph * 0.88 + 0.4) * 0.18 * amp,
-        -0.6,
-        0.6,
-      );
-    }
+    tgt.power = clamp(
+      6.5 + Math.sin(ph) * 1.8 * amp + Math.sin(ph * 0.55 + 1.1) * 0.9 * amp,
+      4.5,
+      9.5,
+    );
+    tgt.bailout = clamp(
+      2.3 + Math.sin(ph * 0.7 + 0.4) * 0.7 * amp + Math.cos(ph * 1.05 + 1.5) * 0.4 * amp,
+      1.6,
+      3.4,
+    );
+    tgt.cx = clamp(
+      Math.sin(ph * 0.42 + 0.2) * 0.45 * amp + Math.cos(ph * 0.8 + 1.3) * 0.22 * amp,
+      -0.65,
+      0.65,
+    );
+    tgt.cy = clamp(
+      Math.sin(ph * 0.38 + 1.7) * 0.42 * amp + Math.sin(ph * 0.9 + 0.5) * 0.2 * amp,
+      -0.65,
+      0.65,
+    );
     return;
   }
 
-  // Tidefold: slow in-band crawl — continuous params, no thrashing snaps
+  // Kleinian: crawl the sparse grand band (vast voids, monumental ribs)
+  if (fractalId === 12) {
+    const amp = 0.55 + 0.25 * a;
+    const ph = morphP * 0.75;
+    tgt.power = clamp(
+      8.5 +
+        Math.sin(ph) * 1.8 * amp +
+        Math.sin(ph * 0.618 + 1.0) * 0.9 * amp +
+        Math.sin(ph * 1.15 + 2.0) * 0.45 * amp,
+      5.5,
+      12.5,
+    );
+    tgt.bailout = clamp(
+      2.8 +
+        Math.sin(ph * 0.65 + 0.4) * 0.65 * amp +
+        Math.cos(ph * 0.95 + 1.35) * 0.35 * amp,
+      1.8,
+      4.2,
+    );
+    tgt.cx = clamp(
+      Math.sin(ph * 0.4 + 0.2) * 0.38 * amp + Math.cos(ph * 0.78 + 1.3) * 0.2 * amp,
+      -0.7,
+      0.7,
+    );
+    tgt.cy = clamp(
+      Math.sin(ph * 0.36 + 1.7) * 0.35 * amp + Math.sin(ph * 0.9 + 0.5) * 0.18 * amp,
+      -0.7,
+      0.7,
+    );
+    return;
+  }
+
+  // Tidefold: slow in-band crawl around the tuned Surf / Gap / Twist defaults
   if (fractalId === 18) {
     const amp = 0.4 + 0.2 * a;
     const ph = morphP * 0.48;
-    const baseP = Number.isFinite(baseline.power) ? baseline.power : 10.0;
-    const baseB = Number.isFinite(baseline.bailout) ? baseline.bailout : 2.4;
+    const baseP = Number.isFinite(baseline.power) ? baseline.power : 12.5;
+    const baseB = Number.isFinite(baseline.bailout) ? baseline.bailout : 3.22;
     const baseX = Number.isFinite(baseline.cx) ? baseline.cx : 0.28;
-    const baseY = Number.isFinite(baseline.cy) ? baseline.cy : -0.1;
+    const baseY = Number.isFinite(baseline.cy) ? baseline.cy : 0.25;
     tgt.power = clamp(
       baseP +
         Math.sin(ph) * 1.1 * amp +
         Math.sin(ph * 0.618 + 1.1) * 0.55 * amp +
         Math.sin(ph * 1.2 + 2.0) * 0.3 * amp,
-      7.5,
-      12.5,
+      8.0,
+      14.0,
     );
     tgt.bailout = clamp(
       baseB +
         Math.sin(ph * 0.55 + 0.4) * 0.45 * amp +
         Math.cos(ph * 0.9 + 1.3) * 0.28 * amp,
-      1.8,
-      3.6,
+      2.2,
+      4.2,
     );
     tgt.cx = clamp(
       baseX +
@@ -454,8 +504,8 @@ function morphFractalShape(
       baseY +
         Math.sin(ph * 0.3 + 1.6) * 0.32 * amp +
         Math.sin(ph * 0.7 + 0.5) * 0.18 * amp,
-      -0.7,
-      0.7,
+      -0.5,
+      0.85,
     );
     return;
   }
@@ -539,7 +589,7 @@ function morphColor(
   const a = beh.colorAmp;
   // Wide, shape-led hue tour — surfaces keep moving through the palette
   const clock = morphP * 1.05 + p * 0.35;
-  const tourRate = fractalId === 5 ? 0.48 : 0.28;
+  const tourRate = fractalId === 5 ? 0.48 : fractalId === 12 ? 0.22 : 0.28;
   const tour = ((clock * tourRate) % 2 + 2) % 2;
   const saw = tour < 1 ? tour * 2 - 1 : 3 - tour * 2;
   tgt.glow = clamp(
@@ -594,6 +644,18 @@ export function updateEvolveTargets(ctx: EvolveContext): EvolveResult {
       // Wide zoom band: pull out to large shells, dive into nested generations
       const zMin = Math.max(ZOOM_MIN, baseline.zoom * 0.2);
       const zMax = Math.max(zMin + 0.2, baseline.zoom * 3.2);
+      tgt.zoom = clamp(baseline.zoom + orbit.zoom, zMin, zMax);
+    } else if (fractalId === 18) {
+      // Spin-led cavern tour — yaw weave + lens roll, gentle pitch
+      tgt.rotX = clamp(orbit.rotX, -TIDEFOLD_POLE_MAX, TIDEFOLD_POLE_MAX);
+      tgt.rotY = baseline.rotY + orbit.rotY;
+      orbit.roll +=
+        dt *
+        speedScale *
+        (0.045 + 0.02 * Math.sin(orbitP * 0.07 + 0.4));
+      tgt.rotZ = (baseline.rotZ ?? 0) + orbit.roll;
+      const zMin = Math.max(ZOOM_MIN, baseline.zoom * 0.55);
+      const zMax = Math.max(zMin + 0.15, baseline.zoom * 1.85);
       tgt.zoom = clamp(baseline.zoom + orbit.zoom, zMin, zMax);
     } else {
       tgt.rotX = clamp(orbit.rotX, -POLE_MAX, POLE_MAX);

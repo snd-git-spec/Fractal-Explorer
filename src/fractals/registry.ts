@@ -17,7 +17,7 @@ export const FRACTALS: FractalMeta[] = [
   { id: 9, slug: 'quaternion-julia', name: 'Quaternion Julia', label: 'Infinite 4D Cross-Section', equation: 'S = ⋃ scᵏ·A — q → q² + c in ℍ, rotating slice, self-similar inward & outward  ·  Quaternion Julia (Hart, 1989)' },
   { id: 10, slug: 'mandelbroth', name: 'Mandelbroth', label: 'Bulb × Box Hybrid', equation: 'Odd steps: z→zⁿ+c (Bulb) · Even steps: box-fold+sphere-fold (Box)  ·  Mandelbroth — two formulas fighting each iteration' },
   { id: 11, slug: 'amazing-surf', name: 'Amazing Surf', label: '2D-fold Layers', equation: '2D box-fold + sphere-fold + scale  ·  Amazing Surf (Kali, 2012)' },
-  { id: 12, slug: 'kleinian', name: 'Kleinian', label: 'Infinite Möbius Web', equation: 'S = ⋃ scᵏ·K — box-fold + sphere inversion × s · plane trap, self-similar inward & outward  ·  Corridor web forever' },
+  { id: 12, slug: 'kleinian', name: 'Kleinian', label: 'Infinite Fold Sponge', equation: 'S = ⋃ scⁿ·K — boxfold∘spherefold×sc + z₀ · L∞ shells inward & outward  ·  Nested cavities forever' },
   { id: 13, slug: 'kifs', name: 'KIFS', label: 'Kaleidoscopic Folds', equation: 'Abs-fold ∘ Rotate ∘ Scale − Offset  ·  Kaleidoscopic IFS (Knighty / Syntopia)' },
   { id: 14, slug: 'kali', name: 'Kali Set', label: 'Inversion Julia', equation: 'p → |p|/|p|² − C  ·  Kali Set (Fragmentarium) — morphing cavern lattice' },
   { id: 15, slug: 'jerusalem-cube', name: 'Jerusalem Cube', label: 'Infinite Greek-Cross Temple', equation: 'S = ⋃ scᵏ·A — cross-cut cubes (vA/vB) self-similar inward & outward  ·  Infinite Jerusalem temple' },

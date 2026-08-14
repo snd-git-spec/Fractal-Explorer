@@ -45,15 +45,8 @@ const MORPH: Record<FractalId, EvolveMorphConfig> = {
   9: { ...BASE, powerMul: 3.8, bailoutMul: 3.2, warpMul: 3.6, detailMul: 2.6 },
   10: { ...BASE, powerMul: 2.6, bailoutMul: 2.2, warpMul: 2.5, detailMul: 2.3 },
   11: { ...BASE, powerMul: 3.0, bailoutMul: 2.4, warpMul: 2.3, detailMul: 2.4 },
-  // Kleinian: keep Möbius scale in cathedral band
-  12: {
-    ...BASE,
-    morphRate: 0.036,
-    powerMul: 0.9,
-    bailoutMul: 0.8,
-    warpMul: 0.75,
-    detailMul: 0.4,
-  },
+  // Kleinian: recursive sponge morph
+  12: { ...BASE, morphRate: 0.075, powerMul: 1.0, bailoutMul: 1.0, warpMul: 1.0, detailMul: 1.2 },
   13: { ...BASE, powerMul: 2.5, bailoutMul: 2.0, warpMul: 2.8, detailMul: 1.8 },
   14: { ...BASE, morphRate: 0.07, powerMul: 1.8, bailoutMul: 1.5, warpMul: 1.85, detailMul: 1.2 },
   15: { ...BASE, morphRate: 0.085, powerMul: 2.0, bailoutMul: 1.85, warpMul: 2.1, detailMul: 1.3 },
