@@ -177,20 +177,39 @@ void main() {
     vec3 baseCol = surfaceTint(p, nor, ao, t, trapRaw, phase, hueSpin);
     vec3 rimCol = paletteAt(u_palette, clamp(phase + 0.12, 0.0, 1.0), hueSpin);
 
-    float edge = pow(1.0 - abs(dot(nor, normalize(-p + vec3(0.001)))), 2.8);
     float key = dif1 * sha;
     float fill = dif2 * 0.42;
     float amb = 0.16;
     float lum = amb + 0.85 * key + fill;
-    col = baseCol * lum;
-    col += fill * baseCol * 0.22;
-    col += fres * rimCol * (0.5 + 0.85 * u_bright);
-    col += edge * rimCol * 0.16;
-    col *= mix(0.82, 1.0, ao);
-    vec3 halfV = normalize(lig1 - rd);
-    float spec = pow(max(dot(nor, halfV), 0.0), 36.0);
-    col += spec * (0.85 + 0.55 * u_bright) * mix(vec3(1.0), rimCol, 0.55) * sha;
-    col = mix(col, vec3(0.0, 0.002, 0.01), clamp(t / MAX_DIST * 1.15 * u_fog, 0.0, 1.0));
+
+    if (gIsoShade > 0.5) {
+      // Isolines: thin contour bands of orbit depth + radius (topo on the solid)
+      float trap = clamp(trapRaw, 0.0, 1.0);
+      float rad = length(p);
+      float field = trap * 0.72 + fract(rad * 0.35 + phase * 0.15) * 0.28;
+      float bands = 18.0;
+      float saw = abs(fract(field * bands) * 2.0 - 1.0);
+      float line = 1.0 - smoothstep(0.0, 0.22, saw);
+      line = pow(line, 1.35);
+
+      vec3 lineCol = mix(rimCol, vec3(1.1, 1.08, 1.02), 0.3) * (0.8 + 0.65 * u_bright);
+      vec3 body = mix(vec3(0.012, 0.014, 0.02), baseCol * 0.14, 0.4) * (0.25 + 0.4 * ao);
+      col = body * (0.4 + 0.45 * lum);
+      col = mix(col, lineCol, line);
+      col += fres * rimCol * 0.12;
+      col = mix(col, vec3(0.0, 0.002, 0.01), clamp(t / MAX_DIST * 1.15 * u_fog, 0.0, 1.0));
+    } else {
+      float edge = pow(1.0 - abs(dot(nor, normalize(-p + vec3(0.001)))), 2.8);
+      col = baseCol * lum;
+      col += fill * baseCol * 0.22;
+      col += fres * rimCol * (0.5 + 0.85 * u_bright);
+      col += edge * rimCol * 0.16;
+      col *= mix(0.82, 1.0, ao);
+      vec3 halfV = normalize(lig1 - rd);
+      float spec = pow(max(dot(nor, halfV), 0.0), 36.0);
+      col += spec * (0.85 + 0.55 * u_bright) * mix(vec3(1.0), rimCol, 0.55) * sha;
+      col = mix(col, vec3(0.0, 0.002, 0.01), clamp(t / MAX_DIST * 1.15 * u_fog, 0.0, 1.0));
+    }
   } else {
     float sn = fract(sin(dot(rd.xy * 400.0, vec2(127.1, 311.7))) * 43758.5);
     float sn2 = fract(sin(dot(rd.yz * 300.0, vec2(269.5, 183.3))) * 43758.5);

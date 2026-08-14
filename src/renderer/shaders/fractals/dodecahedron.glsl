@@ -1,6 +1,7 @@
-// Dodecahedron IFS — true 20-vertex geometry, infinite self-similarity.
-// No plane folds. Morph = spin / stretch / φ-breathe of the solid + recursion scale.
-// Deep iteration + zoom-adaptive depth so zooming in keeps revealing copies-of-copies.
+// Dodecahedron IFS — true 20-vertex geometry, self-similar across scales.
+// S = ⋃_k sc^k · A  (same IFS solid at every size). Fold space into one
+// scale shell, then measure A — zoom out/in both hit the same geometry, forever.
+// Morph = spin / stretch / φ-breathe of the solid + recursion scale.
 
 vec3 rotX(vec3 p, float a) {
   float c = cos(a), s = sin(a);
@@ -90,46 +91,39 @@ float sdeDodecaInfinite(
   float orbit = 0.0;
   float ow = 1.0;
   float DEf = 1.0;
-  int n = 0;
 
-  // Hard cap 64 — deep enough that close zoom still finds new generations
   for (int i = 0; i < 64; i++) {
     if (i >= iters) break;
 
-    // Morph query into canonical solid, pick vertex, morph attractor back
     vec3 q = invMorph(p, ax, ay, az, stretch);
     vec3 cv = morphVert(nearestDodecaFixed(q, phi, rad), ax, ay, az, stretch);
 
     p = sc * p - cv * (sc - 1.0);
     DEf *= sc;
-    n = i + 1;
 
     float r = length(p);
     orbit += ow * exp(-r * 0.85);
     ow *= 0.72;
 
-    // Stop only when this generation is smaller than a pixel-ish feature
-    // (true "infinite" in practice — keep subdividing while visible)
     float feat = r / max(DEf, 1e-4);
     if (feat < minFeat) break;
     if (r > 1e5) break;
   }
 
   gOrbit = clamp(orbit * 0.5, 0.0, 1.0);
-  // Running DEf — honest distance so deep recursion stays sharp when zooming in
   return length(p) / max(DEf, 1e-4) * 0.8;
 }
 
 float sceneSDE(vec3 p) {
+  gIsoShade = 1.0;
+
   float tDet = clamp((u_iter - 8.0) / 56.0, 0.0, 1.0);
 
-  // Detail 8..64 → 18..48 generations; close zoom adds more for ∞
   float zoomBoost = clamp((3.0 - u_zoom) / 3.0, 0.0, 1.0);
   float deepBoost = clamp((0.5 - u_zoom) / 0.45, 0.0, 1.0);
   int it = int(mix(18.0, 48.0, tDet) + zoomBoost * 8.0 + deepBoost * 14.0);
   if (it > 64) it = 64;
 
-  // Feature floor tracks camera — at zoom 0.05 keep subdividing far past old 0.2 floor
   float minFeat = max(u_zoom * 0.00008, 2e-8);
 
   const float PHI = 1.6180339887;
@@ -156,5 +150,25 @@ float sceneSDE(vec3 p) {
   float phi = PHI + mx * 0.28 + my * 0.22 + (tPow - 0.5) * 0.2;
 
   float k = 0.95;
-  return sdeDodecaInfinite(p * k, sc, phi, ax, ay, az, stretch, rad, it, minFeat / k) / k;
+  p *= k;
+
+  // Characteristic radius of one generation A. Fold any point into the shell
+  // [R, R·sc) so measuring A once = measuring every scaled copy of A to ∞.
+  float R = rad * 1.55;
+  float scale = 1.0;
+  for (int i = 0; i < 16; i++) {
+    float r = length(p);
+    if (r >= R * sc) {
+      p /= sc;
+      scale *= sc;
+    } else if (r < R) {
+      p *= sc;
+      scale /= sc;
+    } else {
+      break;
+    }
+  }
+
+  float feat = minFeat / max(scale, 1e-6);
+  return sdeDodecaInfinite(p, sc, phi, ax, ay, az, stretch, rad, it, feat) * scale / k;
 }

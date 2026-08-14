@@ -192,14 +192,14 @@ const INSTRUMENTS: Record<FractalId, FractalInstrument> = {
       {
         name: 'Solid Nest',
         macros: { pulse: 0.5, depth: 0.9, drift: 0.4, void: 0.28 },
-        camera: { zoom: 1.7, rotX: 0.45, rotY: 0.85, power: 7.0, bailout: 2.6, cx: 0.25, cy: -0.2 },
+        camera: { zoom: 2.6, rotX: 0.45, rotY: 0.85, power: 7.0, bailout: 2.6, cx: 0.25, cy: -0.2 },
         atmosphere: { fog: 0.28, fov: 1.35, gamma: 0.55, vignette: 0.65 },
         palette: 2,
       },
       {
         name: 'Out of Itself',
         macros: { pulse: 0.75, depth: 0.95, drift: 0.7, void: 0.25 },
-        camera: { zoom: 1.45, rotX: 0.4, rotY: 1.1, power: 11.5, bailout: 3.8, cx: 0.8, cy: -0.65 },
+        camera: { zoom: 2.2, rotX: 0.4, rotY: 1.1, power: 11.5, bailout: 3.8, cx: 0.8, cy: -0.65 },
         atmosphere: { fog: 0.25, fov: 1.4, gamma: 0.55, vignette: 0.6 },
         palette: 0,
       },

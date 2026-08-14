@@ -36,6 +36,8 @@ mat3 mRotY(float a) {
 
 // Orbit trap written by fractal SDEs during iteration (form-locked colour)
 float gOrbit = 1e5;
+// 1 = isoline shade (contour bands); set by fractal body when wanted
+float gIsoShade = 0.0;
 
 // Forward declarations for fractal functions
 float sceneSDE(vec3 p);

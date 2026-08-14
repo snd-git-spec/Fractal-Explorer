@@ -10,7 +10,7 @@ export const FRACTALS: FractalMeta[] = [
   { id: 2, slug: 'nova', name: 'Nova / Newton', label: '3-Petal Newton', equation: 'z → z − (z³−1)/(3z²) + c  ·  Nova/Newton Fractal — 3-petal convergence basins' },
   { id: 3, slug: 'menger', name: 'Menger Sponge', label: 'IFS Cross Fold', equation: 'IFS Cross-Subtraction  ·  Menger Sponge' },
   { id: 4, slug: 'apollonian', name: 'Apollonian', label: 'Inversive Spheres', equation: 'Inversive Spheres: p→p·k/|p|²  ·  Apollonian Gasket' },
-  { id: 5, slug: 'dodecahedron', name: 'Dodecahedron IFS', label: '5-fold Pentagonal', equation: 'IFS → 20 dodeca vertices × scale → ∞  ·  Infinite self-similar solid — zoom in, copies keep opening' },
+  { id: 5, slug: 'dodecahedron', name: 'Dodecahedron IFS', label: '5-fold Pentagonal', equation: 'IFS → 20 dodeca vertices · S=⋃ scᵏA  ·  Same solid at every scale — zoom in or out forever' },
   { id: 6, slug: 'sierpinski', name: 'Sierpinski', label: 'Tetrahedron IFS', equation: 'IFS Fold to Nearest Vertex × 2ⁿ  ·  Sierpiński Tetrahedron' },
   { id: 7, slug: 'pseudo-kleinian', name: 'Pseudo Kleinian', label: 'Julia-Box Lattice', equation: 'Box-fold ∘ Sphere-fold + C → plane trap  ·  Pseudo Kleinian (Knighty / Theli-at)' },
   { id: 8, slug: 'kleinian-ifs', name: 'Kleinian IFS', label: 'Möbius Limit Set', equation: 'Octahedral sort + scale  ·  Kleinian IFS — stellated spiky lattice' },
