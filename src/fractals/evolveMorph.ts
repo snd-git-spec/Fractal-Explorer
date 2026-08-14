@@ -29,29 +29,55 @@ const MORPH: Record<FractalId, EvolveMorphConfig> = {
   2: { ...BASE, powerMul: 1.8, bailoutMul: 1.6, warpMul: 2.4, detailMul: 0.5 },
   3: { ...BASE, powerMul: 3.0, bailoutMul: 2.0, warpMul: 2.6, detailMul: 2.8 },
   4: { ...BASE, powerMul: 3.2, bailoutMul: 1.9, warpMul: 2.5, detailMul: 2.6 },
-  5: { ...BASE, morphRate: 0.16, powerMul: 1.0, bailoutMul: 1.0, warpMul: 1.0, detailMul: 1.5 },
+  // Dodeca: absolute lace-band crawl (special morph) — rate just paces phase
+  5: { ...BASE, morphRate: 0.088, powerMul: 1.0, bailoutMul: 1.0, warpMul: 1.0, detailMul: 1.0 },
   6: { ...BASE, powerMul: 3.0, bailoutMul: 1.9, warpMul: 2.6, detailMul: 2.8 },
   // PK: Julia C + plane trap snap hard when harmonics align — slower rate, softer amps
   7: {
     ...BASE,
-    morphRate: 0.048,
-    powerMul: 1.6,
-    bailoutMul: 1.35,
-    warpMul: 1.55,
-    detailMul: 0.7,
+    morphRate: 0.032,
+    powerMul: 0.85,
+    bailoutMul: 0.75,
+    warpMul: 0.7,
+    detailMul: 0.35,
   },
   8: { ...BASE, powerMul: 3.0, bailoutMul: 1.9, warpMul: 2.4, detailMul: 2.6 },
   9: { ...BASE, powerMul: 3.8, bailoutMul: 3.2, warpMul: 3.6, detailMul: 2.6 },
   10: { ...BASE, powerMul: 2.6, bailoutMul: 2.2, warpMul: 2.5, detailMul: 2.3 },
   11: { ...BASE, powerMul: 3.0, bailoutMul: 2.4, warpMul: 2.3, detailMul: 2.4 },
-  12: { ...BASE, powerMul: 2.7, bailoutMul: 2.2, warpMul: 2.5, detailMul: 1.8 },
+  // Kleinian: keep Möbius scale in cathedral band
+  12: {
+    ...BASE,
+    morphRate: 0.036,
+    powerMul: 0.9,
+    bailoutMul: 0.8,
+    warpMul: 0.75,
+    detailMul: 0.4,
+  },
   13: { ...BASE, powerMul: 2.5, bailoutMul: 2.0, warpMul: 2.8, detailMul: 1.8 },
   14: { ...BASE, morphRate: 0.07, powerMul: 1.8, bailoutMul: 1.5, warpMul: 1.85, detailMul: 1.2 },
   15: { ...BASE, morphRate: 0.085, powerMul: 2.0, bailoutMul: 1.85, warpMul: 2.1, detailMul: 1.3 },
-  16: { ...BASE, morphRate: 0.04, powerMul: 1.4, bailoutMul: 1.25, warpMul: 1.35, detailMul: 0.9 },
+  16: { ...BASE, morphRate: 0.022, powerMul: 0.85, bailoutMul: 0.8, warpMul: 0.75, detailMul: 0.45 },
   17: { ...BASE, morphRate: 0.065, powerMul: 2.0, bailoutMul: 1.75, warpMul: 1.9, detailMul: 1.2 },
+  18: { ...BASE, morphRate: 0.04, powerMul: 0.95, bailoutMul: 0.9, warpMul: 0.95, detailMul: 0.25 },
 };
 
 export function getEvolveMorph(fractalId: FractalId): EvolveMorphConfig {
   return MORPH[fractalId];
+}
+
+/**
+ * Where Auto Evolve begins on fractal switch — phase 0 is one point in the
+ * morph cycle; some fractals look foamier there than further along.
+ */
+const MORPH_PHASE_START: Partial<Record<FractalId, number>> = {
+  // PK / Kleinian: open in a corridor-friendly part of the cycle
+  7: 2.85,
+  12: 1.6,
+  // Tidefold: open deep in cycle — different lattice cut than phase 0
+  18: 7.8,
+};
+
+export function getMorphPhaseStart(fractalId: FractalId): number {
+  return MORPH_PHASE_START[fractalId] ?? 0;
 }

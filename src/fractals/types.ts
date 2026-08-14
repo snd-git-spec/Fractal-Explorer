@@ -1,6 +1,6 @@
 export type FractalId =
   | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14
-  | 15 | 16 | 17;
+  | 15 | 16 | 17 | 18;
 
 export interface FractalMeta {
   id: FractalId;
@@ -13,6 +13,8 @@ export interface FractalMeta {
 export interface CameraState {
   rotX: number;
   rotY: number;
+  /** Lens roll — spin around the view axis (spinning-top). */
+  rotZ: number;
   zoom: number;
   panX: number;
   panY: number;
@@ -46,6 +48,8 @@ export interface CameraOrbit {
   panY: number;
   /** Continuous azimuth integration for 360° spin. */
   azimuth: number;
+  /** Lens roll offset (view-axis spin). */
+  roll: number;
   seeds: OrbitSeeds;
 }
 
@@ -68,6 +72,7 @@ export const DEFAULT_ORBIT: CameraOrbit = {
   panX: 0,
   panY: 0,
   azimuth: 0,
+  roll: 0,
   seeds: { ...DEFAULT_SEEDS },
 };
 
@@ -93,6 +98,7 @@ export function zeroOrbitOffsets(orbit: CameraOrbit): void {
   orbit.panX = 0;
   orbit.panY = 0;
   orbit.azimuth = 0;
+  orbit.roll = 0;
 }
 
 export function resetOrbit(orbit: CameraOrbit): void {
@@ -112,6 +118,7 @@ export interface ExplorerRuntimeState {
 export const DEFAULT_CAMERA: CameraState = {
   rotX: 0.2,
   rotY: 0.0,
+  rotZ: 0.0,
   zoom: 2.2,
   panX: 0,
   panY: 0,

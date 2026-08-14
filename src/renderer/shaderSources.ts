@@ -24,6 +24,7 @@ const fractalShaderLoaders: Record<string, () => Promise<{ default: string }>> =
   'jerusalem-cube': () => import('./shaders/fractals/jerusalem-cube.glsl?raw'),
   'penrose-quasicrystal': () => import('./shaders/fractals/penrose-quasicrystal.glsl?raw'),
   'hyperbolic-kaleidoscope': () => import('./shaders/fractals/hyperbolic-kaleidoscope.glsl?raw'),
+  'asurf-menger': () => import('./shaders/fractals/asurf-menger.glsl?raw'),
 };
 
 export async function loadFractalShaderSource(fractalId: FractalId): Promise<string> {
@@ -77,6 +78,7 @@ if (import.meta.hot) {
       './shaders/fractals/kifs.glsl?raw',
       './shaders/fractals/kali.glsl?raw',
       './shaders/fractals/hyperbolic-kaleidoscope.glsl?raw',
+      './shaders/fractals/asurf-menger.glsl?raw',
     ],
     () => {
       window.dispatchEvent(new Event('fractal-shader-hmr'));

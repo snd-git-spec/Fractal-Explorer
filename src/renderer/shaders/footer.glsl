@@ -46,34 +46,28 @@ vec3 hsv2rgb(vec3 c) {
   return c.z * mix(vec3(1.0), rgb, c.y);
 }
 
-// Colour model — locked. Hue continuous in t; t form-locked & low-freq only.
-// Do NOT drive hue with orbit, normals, high-freq sin, or screen UV.
-// hueSpin is an extra rotation added *inside* the wrapping fract() — a spin that
-// completes a full 0→1 lap is invisible in hue-space (h and h+1 are identical
-// colours), so it can never introduce a seam, only extra continuous variety.
+// Colour model — form-locked with wide hue dynamics (smooth, no grain).
 vec3 hueWalk(float t, float h0, float span, float sat, float val, float hueSpin) {
   t = clamp(t, 0.0, 1.0);
   float h = fract(h0 + span * t + hueSpin);
-  float s = sat * (0.86 + 0.14 * sin(t * 3.14159265));
-  float v = val * (0.88 + 0.14 * t);
-  return hsv2rgb(vec3(h, clamp(s, 0.0, 1.0), clamp(v, 0.0, 1.2)));
+  float s = sat * (0.78 + 0.22 * sin(t * 3.14159265));
+  float v = val * (0.82 + 0.22 * t);
+  return hsv2rgb(vec3(h, clamp(s, 0.0, 1.0), clamp(v, 0.0, 1.25)));
 }
 
 vec3 paletteAt(int idx, float t, float hueSpin) {
   t = clamp(t, 0.0, 1.0);
-  // Spin amplitude is scaled per profile — themed palettes wobble within their own
-  // family (stay "distinct"), Full Spectrum alone gets the full wheel of spin.
-  if (idx == 0) return hueWalk(t, 0.55, 0.38, 0.95, 1.05, hueSpin * 0.30);
-  if (idx == 1) return hueWalk(t, 0.82, -0.52, 0.98, 1.05, hueSpin * 0.38);
-  if (idx == 2) return hueWalk(t, 0.98, 0.18, 0.95, 1.08, hueSpin * 0.26);
-  if (idx == 3) return hueWalk(t, 0.68, 0.30, 0.95, 1.05, hueSpin * 0.30);
-  if (idx == 4) return hueWalk(t, 0.35, 0.42, 0.92, 1.05, hueSpin * 0.34);
-  if (idx == 5) return hueWalk(t, 0.52, -0.50, 0.98, 1.08, hueSpin * 0.38);
-  if (idx == 6) return hueWalk(t, 0.70, 0.28, 0.95, 1.05, hueSpin * 0.30);
-  if (idx == 7) return hueWalk(t, 0.55, 0.10, mix(0.85, 0.20, t), mix(0.75, 1.1, t), hueSpin * 0.14);
-  // cos(2π·1·(t+hueSpin)) — hueSpin is periodic here too, same seam-free guarantee.
-  // Full Spectrum keeps the full spin so it genuinely tours the whole wheel.
-  return iqPalette(vec3(0.55), vec3(0.50), vec3(1.0), vec3(0.0, 0.33, 0.67), t + hueSpin);
+  // Wide spans so surfaces actually tour distinct hues (not one-tint washes)
+  if (idx == 0) return hueWalk(t, 0.52, 0.62, 0.98, 1.08, hueSpin * 0.72);
+  if (idx == 1) return hueWalk(t, 0.78, -0.78, 1.0, 1.08, hueSpin * 0.78);
+  if (idx == 2) return hueWalk(t, 0.96, 0.48, 0.98, 1.1, hueSpin * 0.65);
+  if (idx == 3) return hueWalk(t, 0.62, 0.55, 0.98, 1.08, hueSpin * 0.7);
+  if (idx == 4) return hueWalk(t, 0.32, 0.68, 0.95, 1.08, hueSpin * 0.75);
+  if (idx == 5) return hueWalk(t, 0.48, -0.72, 1.0, 1.1, hueSpin * 0.8);
+  if (idx == 6) return hueWalk(t, 0.68, 0.52, 0.98, 1.08, hueSpin * 0.7);
+  if (idx == 7) return hueWalk(t, 0.52, 0.28, mix(0.75, 0.35, t), mix(0.7, 1.15, t), hueSpin * 0.45);
+  // Full Spectrum — entire wheel + strong spin
+  return iqPalette(vec3(0.55), vec3(0.55), vec3(1.0), vec3(0.0, 0.33, 0.67), t + hueSpin);
 }
 
 vec3 paletteAt(int idx, float t) {
@@ -84,46 +78,80 @@ vec3 palette(float t) {
   return paletteAt(u_palette, clamp(t, 0.0, 1.0));
 }
 
-// trapRaw is gOrbit — a smooth/fractional escape-iteration count in [0,1] on fractals
-// that write it (mandelbulb, mandelbox), or the untouched sentinel (1e5) on ones that don't.
-// hasTrap gates it out cleanly instead of polluting phase with the sentinel value.
-float formPhase(vec3 p, float ao, float tHit, float trapRaw) {
-  float hasTrap = step(trapRaw, 1000.0);
-  float trap = hasTrap * clamp(trapRaw, 0.0, 1.0);
-
-  // Trap-led when available. Without it, prefer smooth depth/height over noisy AO
-  // (AO×palette was the sparkly topo-map look on KIFS / Apollonian / etc.).
-  float wTrap  = 0.62 * hasTrap;
-  float wAo    = mix(0.12, 0.08, hasTrap);
-  float wDepth = mix(0.38, 0.14, hasTrap);
-  float wY     = mix(0.22, 0.08, hasTrap);
-  float wRad   = mix(0.28, 0.08, hasTrap);
-
-  float t = 0.0;
-  t += wTrap * trap;
-  t += wAo * (1.0 - ao);
-  t += wDepth * smoothstep(u_zoom * 0.2, u_zoom * 1.45, tHit);
-  t += wY * smoothstep(-1.8, 1.8, p.y);
-  t += wRad * smoothstep(u_zoom * 0.12, u_zoom * 2.2, length(p));
-  return clamp(t, 0.0, 1.0);
+// Face id + low-freq wash — smooth, but enough separation for hue bands
+float faceFromNormal(vec3 p, vec3 nor) {
+  vec3 an = abs(nor);
+  vec2 uv;
+  float faceSel;
+  if (an.x >= an.y && an.x >= an.z) {
+    uv = p.yz;
+    faceSel = 0.08 + 0.14 * step(0.0, nor.x);
+  } else if (an.y >= an.z) {
+    uv = p.xz;
+    faceSel = 0.36 + 0.14 * step(0.0, nor.y);
+  } else {
+    uv = p.xy;
+    faceSel = 0.68 + 0.14 * step(0.0, nor.z);
+  }
+  float s = mix(0.7, 2.2, clamp((2.5 - u_zoom) / 2.5, 0.0, 1.0));
+  float u = 0.5 + 0.5 * sin(uv.x * s);
+  float v = 0.5 + 0.5 * sin(uv.y * s * 0.85 + uv.x * s * 0.25);
+  float dom = max(an.x, max(an.y, an.z));
+  float crease = 1.0 - clamp((dom - 0.55) / 0.45, 0.0, 1.0);
+  return fract(faceSel + u * 0.35 + v * 0.28 + crease * 0.18);
 }
 
-vec3 surfaceTint(vec3 p, vec3 nor, float ao, float tHit, float trapRaw, out float phaseOut, out float hueSpinOut) {
-  float t = formPhase(p, ao, tHit, trapRaw);
+float formPhase(vec3 p, float ao, float tHit, float trapRaw, float faceRaw, vec3 nor) {
+  float hasTrap = step(trapRaw, 1000.0);
+  float hasFace = step(faceRaw, 1000.0);
+  float trap = clamp(trapRaw, 0.0, 1.0);
+  float faceFld = clamp(faceRaw, 0.0, 1.0);
+  float faceN = faceFromNormal(p, nor);
+
+  // Expand soft traps so they use the full palette, not a mid-grey band
+  trap = pow(trap, 0.62);
+  faceFld = pow(faceFld, 0.7);
+
+  // Two smooth bands: depth trap + face field → wide hue separation across form
+  float depthBand = mix(faceN, trap, hasTrap);
+  float faceBand = mix(faceN, faceFld, hasFace);
+  float surf = fract(depthBand * 0.72 + faceBand * 0.95 + (1.0 - ao) * 0.12);
+
+  // Remap into a lively mid-to-full range (still continuous — no stipple)
+  surf = clamp(surf * 1.15, 0.0, 1.0);
+
+  float fallback = clamp(
+    fract(
+      faceN * 0.85 +
+        0.35 * smoothstep(u_zoom * 0.15, u_zoom * 1.6, tHit) +
+        0.25 * smoothstep(-2.0, 2.0, p.y)
+    ),
+    0.0,
+    1.0
+  );
+
+  return mix(fallback, surf, max(hasTrap, hasFace));
+}
+
+vec3 surfaceTint(vec3 p, vec3 nor, float ao, float tHit, float trapRaw, float faceRaw, out float phaseOut, out float hueSpinOut) {
+  float t = formPhase(p, ao, tHit, trapRaw, faceRaw, nor);
   phaseOut = t;
   float hasTrap = step(trapRaw, 1000.0);
-  float trapVal = clamp(trapRaw, 0.0, 1.0);
-  // Smooth geometric spin fallback — never AO*6 (that speckled Full Spectrum)
-  float geo =
-    0.5 +
-    0.5 * sin(length(p) * 0.55 + p.y * 0.35 + nor.y * 0.4);
-  float spinSrc = mix(geo, trapVal, hasTrap);
-  // Mild laps + glow tour; enough variety without rainbow noise
-  float hueSpin = fract(spinSrc * 2.0 + u_colorShift * 0.42);
+  float hasFace = step(faceRaw, 1000.0);
+  float trap = pow(clamp(trapRaw, 0.0, 1.0), 0.62);
+  float faceFld = pow(clamp(faceRaw, 0.0, 1.0), 0.7);
+  float faceN = faceFromNormal(p, nor);
+
+  // Strong form-driven spin — different faces/depths land in different palette regions
+  float spinSrc = mix(faceN, mix(trap, faceFld, hasFace * 0.55), max(hasTrap, hasFace));
+  float hueSpin = fract(spinSrc * 2.6 + u_colorShift * 0.95 + t * 0.45);
   hueSpinOut = hueSpin;
+
+  // Wide chord across the palette for living surface colour
   vec3 a = paletteAt(u_palette, t, hueSpin);
-  vec3 b = paletteAt(u_palette, clamp(t + 0.08, 0.0, 1.0), hueSpin);
-  return mix(a, b, 0.28);
+  vec3 b = paletteAt(u_palette, fract(t + 0.22), hueSpin);
+  vec3 c = paletteAt(u_palette, fract(t + 0.48), hueSpin * 0.85);
+  return mix(mix(a, b, 0.4), c, 0.22);
 }
 
 
@@ -148,7 +176,7 @@ float rayMarch(vec3 ro, vec3 rd, out int steps) {
 
 void main() {
   vec2 uv = (gl_FragCoord.xy - 0.5 * u_res) / u_res.y;
-  mat3 camRot = mRotY(u_rotY) * mRotX(u_rotX);
+  mat3 camRot = mRotY(u_rotY) * mRotX(u_rotX) * mRotZ(u_rotZ);
   vec3 ro = camRot * vec3(0, 0, u_zoom) + vec3(u_pan, 0);
   vec3 rd = camRot * normalize(vec3(uv, -u_fov));
   int steps;
@@ -159,11 +187,13 @@ void main() {
     vec3 nor = calcNormal(p, t);
     float ao = calcAO(p, nor);
 
-    // calcNormal/calcAO's probe samples overwrite gOrbit — re-evaluate once more
-    // at the exact hit point so the trap reading matches this pixel's surface.
+    // calcNormal/calcAO's probe samples overwrite gOrbit/gFace — re-evaluate once
+    // at the exact hit point so colour matches this pixel's surface.
     gOrbit = 1e5;
+    gFace = 1e5;
     sceneSDE(p);
     float trapRaw = gOrbit;
+    float faceRaw = gFace;
 
     vec3 lig1 = normalize(vec3(0.75, 0.55, 0.4));
     vec3 lig2 = normalize(vec3(-0.55, 0.35, 0.75));
@@ -174,7 +204,7 @@ void main() {
 
     float phase;
     float hueSpin;
-    vec3 baseCol = surfaceTint(p, nor, ao, t, trapRaw, phase, hueSpin);
+    vec3 baseCol = surfaceTint(p, nor, ao, t, trapRaw, faceRaw, phase, hueSpin);
     vec3 rimCol = paletteAt(u_palette, clamp(phase + 0.12, 0.0, 1.0), hueSpin);
 
     float key = dif1 * sha;

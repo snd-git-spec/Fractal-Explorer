@@ -5,6 +5,7 @@ import { getSnapshots, type FractalSnapshot } from '@/fractals/instruments';
 import { getFractalSlug } from '@/fractals/registry';
 import { remixState } from '@/fractals/remix';
 import { decodeSeed, encodeSeed, getSeedFromUrl, setSeedInUrl } from '@/fractals/seeds';
+import { getMorphPhaseStart } from '@/fractals/evolveMorph';
 import { syncSphereOrbitToPitch } from '@/fractals/evolveProfiles';
 import {
   startCanvasRecording,
@@ -116,6 +117,7 @@ function applySnapshotToState(
   // Instant snap so snapshot framing is visible immediately
   Object.assign(runtime.cur, runtime.tgt);
   syncSphereOrbitToPitch(runtime.orbit, runtime.cur.rotX);
+  runtime.morphPhase = getMorphPhaseStart(get().fractalId);
 
   const atmosphere = snapshot.atmosphere
     ? { ...get().atmosphere, ...snapshot.atmosphere }
@@ -134,7 +136,7 @@ function applySnapshotToState(
 }
 
 export const useExplorerStore = create<ExplorerStore>((set, get) => ({
-  fractalId: 13,
+  fractalId: 18,
   paletteIdx: 8,
   autoEvolve: true,
   uiVisible: true,
@@ -158,12 +160,14 @@ export const useExplorerStore = create<ExplorerStore>((set, get) => ({
     const runtime = get().runtime;
     resetOrbit(runtime.orbit);
     runtime.evolvePhase = 0;
-    runtime.morphPhase = 0;
+    runtime.morphPhase = getMorphPhaseStart(id);
     runtime.orbitPhase = 0;
 
     const view = applyFractalPreset(runtime.tgt, id);
     const result = applyMacrosToTarget(get().macros, id, runtime.tgt, true);
-    // Macros include a zoom channel — restore fractal framing so presets stick
+    // Macros overwrite shape dials — re-apply fractal param defaults (e.g. Fold Scale)
+    applyFractalPreset(runtime.tgt, id);
+    // Restore framing after macros
     snapCameraToView(runtime.tgt, view);
     // Snap ALL params instantly — leftover evolve power/warp makes new fractals unreadable
     Object.assign(runtime.cur, runtime.tgt);
@@ -177,10 +181,14 @@ export const useExplorerStore = create<ExplorerStore>((set, get) => ({
     prevBaseline.zoom = view.zoom;
     prevBaseline.rotX = view.rotX;
     prevBaseline.rotY = view.rotY;
-    prevBaseline.panX = 0;
-    prevBaseline.panY = 0;
+    prevBaseline.panX = view.panX;
+    prevBaseline.panY = view.panY;
     runtime.tgt.zoom = view.zoom;
     runtime.cur.zoom = view.zoom;
+    runtime.tgt.panX = view.panX;
+    runtime.cur.panX = view.panX;
+    runtime.tgt.panY = view.panY;
+    runtime.cur.panY = view.panY;
     syncSphereOrbitToPitch(runtime.orbit, view.rotX);
 
     const anchor = { ...view };
@@ -206,6 +214,7 @@ export const useExplorerStore = create<ExplorerStore>((set, get) => ({
       Object.assign(baseline, {
         rotX: cur.rotX,
         rotY: cur.rotY,
+        rotZ: cur.rotZ ?? 0,
         zoom: cur.zoom,
         panX: 0,
         panY: 0,
@@ -471,7 +480,9 @@ if (import.meta.env.DEV) {
 const initial = useExplorerStore.getState();
 const initView = applyFractalPreset(initial.runtime.tgt, initial.fractalId);
 const initResult = applyMacrosToTarget(initial.macros, initial.fractalId, initial.runtime.tgt, true);
+applyFractalPreset(initial.runtime.tgt, initial.fractalId);
 snapCameraToView(initial.runtime.cur, initView);
+Object.assign(initial.runtime.cur, initial.runtime.tgt);
 syncSphereOrbitToPitch(initial.runtime.orbit, initView.rotX);
 useExplorerStore.setState({
   atmosphere: initResult.atmosphere,

@@ -88,6 +88,7 @@ export class FractalRenderer {
         const pose = {
           rotX: cur.rotX,
           rotY: cur.rotY,
+          rotZ: cur.rotZ,
           zoom: Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, cur.zoom)),
           panX: cur.panX,
           panY: cur.panY,
@@ -100,11 +101,14 @@ export class FractalRenderer {
           panY: 0,
         });
         syncSphereOrbitToPitch(state.runtime.orbit, pose.rotX);
+        state.runtime.orbit.roll = 0;
         cur.rotX = pose.rotX;
         cur.rotY = pose.rotY;
+        cur.rotZ = pose.rotZ;
         cur.zoom = pose.zoom;
         tgt.rotX = pose.rotX;
         tgt.rotY = pose.rotY;
+        tgt.rotZ = pose.rotZ;
         tgt.zoom = pose.zoom;
         tgt.panX = 0;
         tgt.panY = 0;
@@ -301,6 +305,7 @@ export class FractalRenderer {
       time: this.simTime,
       rotY: cur.rotY,
       rotX: cur.rotX,
+      rotZ: cur.rotZ,
       zoom: cur.zoom,
       panX: cur.panX,
       panY: cur.panY,

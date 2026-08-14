@@ -37,6 +37,7 @@ export function lerpCameraState(
     const panK   = 1 - Math.exp(-dt / PAN_TAU);   // pan snaps to centre fast
     lerpField(state, rotK,   'rotX');
     lerpField(state, rotK,   'rotY');
+    lerpField(state, rotK,   'rotZ');
     // Zoom snaps — slow PARAM_TAU lerp left framing stuck inside the set after fractal switch
     state.cur.zoom = state.tgt.zoom;
     lerpField(state, panK,   'panX');  // fast snap to 0
@@ -55,6 +56,7 @@ export function lerpCameraState(
   const colorK = 1 - Math.exp(-dt / COLOR_TAU);
   lerpField(state, k, 'rotX');
   lerpField(state, k, 'rotY');
+  lerpField(state, k, 'rotZ');
   lerpField(state, k, 'zoom');
   lerpField(state, k, 'panX');
   lerpField(state, k, 'panY');

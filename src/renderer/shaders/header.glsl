@@ -4,6 +4,7 @@ uniform vec2  u_res;
 uniform float u_time;
 uniform float u_rotY;
 uniform float u_rotX;
+uniform float u_rotZ;
 uniform float u_zoom;
 uniform vec2  u_pan;
 uniform float u_power;
@@ -34,8 +35,15 @@ mat3 mRotY(float a) {
   return mat3(c, 0, s, 0, 1, 0, -s, 0, c);
 }
 
+mat3 mRotZ(float a) {
+  float c = cos(a), s = sin(a);
+  return mat3(c, -s, 0, s, c, 0, 0, 0, 1);
+}
+
 // Orbit trap written by fractal SDEs during iteration (form-locked colour)
 float gOrbit = 1e5;
+// Face / fold field — axis + planar UV from iterates (intricate surface colour)
+float gFace = 1e5;
 // 1 = isoline shade (contour bands); set by fractal body when wanted
 float gIsoShade = 0.0;
 

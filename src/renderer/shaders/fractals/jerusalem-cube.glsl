@@ -1,5 +1,7 @@
-// Jerusalem Cube — Angramme IFS temple.
-// Smooth orbit colour that flows with the form (no stepped / sparkle traps).
+// Jerusalem Cube — Angramme IFS temple, infinite across scales.
+// S = ⋃_k sc^k · A  — same Greek-cross solid at every size. Fold space into
+// one scale shell, then measure A — zoom out/in both hit the temple forever.
+// Soft orbit colour that flows with the form (no stepped / sparkle traps).
 
 float sdBoxJC(vec3 p, vec3 b) {
   vec3 q = abs(p) - b;
@@ -57,6 +59,32 @@ float sceneSDE(vec3 p) {
   float arm = clamp((u_bailout - 1.0) / 5.0, 0.0, 1.0);
   float warp = u_jc.y;
 
+  // Generation ratio — corner-cube self-similarity (parent → next larger copy)
+  float sc = 1.0 / max(vB, 0.05);
+
   float k = 0.62;
-  return sdeJerusalem(p * k, vB, arm, warp, it) / k;
+  p *= k;
+
+  // L∞ shell of one generation A. Fold any point into [R, R·sc) so measuring
+  // A once = measuring every scaled copy of A to ∞ (cubic shells fit the form).
+  float R = 0.72;
+  float scale = 1.0;
+  for (int i = 0; i < 18; i++) {
+    float m = max(abs(p.x), max(abs(p.y), abs(p.z)));
+    if (m >= R * sc) {
+      p /= sc;
+      scale *= sc;
+    } else if (m < R) {
+      p *= sc;
+      scale /= sc;
+    } else {
+      break;
+    }
+  }
+
+  // Deeper inward shells need a little more IFS depth to keep cuts sharp
+  float deep = clamp(log(1.0 / max(scale, 1e-4)) / log(sc), 0.0, 6.0);
+  it = int(min(float(it) + deep, 24.0));
+
+  return sdeJerusalem(p, vB, arm, warp, it) * scale / k;
 }

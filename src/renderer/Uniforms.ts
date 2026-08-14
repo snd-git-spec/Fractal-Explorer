@@ -3,6 +3,7 @@ export interface UniformLocations {
   time: WebGLUniformLocation | null;
   rotY: WebGLUniformLocation | null;
   rotX: WebGLUniformLocation | null;
+  rotZ: WebGLUniformLocation | null;
   zoom: WebGLUniformLocation | null;
   pan: WebGLUniformLocation | null;
   power: WebGLUniformLocation | null;
@@ -29,6 +30,7 @@ export function getUniformLocations(
     time: gl.getUniformLocation(program, 'u_time'),
     rotY: gl.getUniformLocation(program, 'u_rotY'),
     rotX: gl.getUniformLocation(program, 'u_rotX'),
+    rotZ: gl.getUniformLocation(program, 'u_rotZ'),
     zoom: gl.getUniformLocation(program, 'u_zoom'),
     pan: gl.getUniformLocation(program, 'u_pan'),
     power: gl.getUniformLocation(program, 'u_power'),
@@ -53,6 +55,7 @@ export interface UniformValues {
   time: number;
   rotY: number;
   rotX: number;
+  rotZ: number;
   zoom: number;
   panX: number;
   panY: number;
@@ -81,6 +84,7 @@ export function uploadUniforms(
   gl.uniform1f(U.time, v.time);
   gl.uniform1f(U.rotY, v.rotY);
   gl.uniform1f(U.rotX, v.rotX);
+  gl.uniform1f(U.rotZ, v.rotZ);
   gl.uniform1f(U.zoom, v.zoom);
   gl.uniform2f(U.pan, v.panX, v.panY);
   gl.uniform1f(U.power, v.power);
