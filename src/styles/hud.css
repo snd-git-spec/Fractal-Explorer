@@ -154,7 +154,6 @@
 .hud-capsule {
   background: var(--hud-glass);
   backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
   border: 1px solid var(--hud-border);
   border-radius: 4px;
 }
@@ -167,7 +166,6 @@
 .hud-glass-box {
   background: rgba(255, 255, 255, 0.06);
   backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
   border: none;
   border-radius: 2px;
   box-shadow:
@@ -179,7 +177,6 @@
 .hud-sheet-glass {
   background: rgba(0, 8, 16, 0.42);
   backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
   border-top: 1px solid rgba(0, 255, 65, 0.1);
   box-shadow: 0 -6px 28px rgba(0, 0, 0, 0.28);
 }
