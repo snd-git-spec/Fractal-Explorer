@@ -6,7 +6,7 @@ import { getFractalSlug } from '@/fractals/registry';
 import { remixState } from '@/fractals/remix';
 import { decodeSeed, encodeSeed, getSeedFromUrl, setSeedInUrl } from '@/fractals/seeds';
 import { getMorphPhaseStart } from '@/fractals/evolveMorph';
-import { syncSphereOrbitToPitch } from '@/fractals/evolveProfiles';
+import { syncOrbitOffsetsFromPose } from '@/fractals/evolveProfiles';
 import {
   startCanvasRecording,
   stopCanvasRecording,
@@ -18,7 +18,6 @@ import {
   DEFAULT_MACROS,
   DEFAULT_VIEW_ANCHOR,
   resetOrbit,
-  zeroOrbitOffsets,
   type AtmosphereState,
   type CameraState,
   type ExplorerRuntimeState,
@@ -116,7 +115,11 @@ function applySnapshotToState(
 
   // Instant snap so snapshot framing is visible immediately
   Object.assign(runtime.cur, runtime.tgt);
-  syncSphereOrbitToPitch(runtime.orbit, runtime.cur.rotX);
+  syncOrbitOffsetsFromPose(runtime.orbit, {
+    rotX: runtime.cur.rotX,
+    rotY: runtime.cur.rotY,
+    rotZ: runtime.cur.rotZ ?? 0,
+  }, get().fractalId, runtime.orbitPhase);
   runtime.morphPhase = getMorphPhaseStart(get().fractalId);
 
   const atmosphere = snapshot.atmosphere
@@ -158,10 +161,19 @@ export const useExplorerStore = create<ExplorerStore>((set, get) => ({
 
   setFractalId: (id) => {
     const runtime = get().runtime;
-    resetOrbit(runtime.orbit);
+    const pose = {
+      rotX: runtime.cur.rotX,
+      rotY: runtime.cur.rotY,
+      rotZ: runtime.cur.rotZ ?? 0,
+    };
+    const orbitPhase = runtime.orbitPhase;
+    // Keep global path clock + seeds; only clear zoom breathe offset for new baseline.
+    runtime.orbit.zoom = 0;
+    runtime.orbit.panX = 0;
+    runtime.orbit.panY = 0;
+
     runtime.evolvePhase = 0;
     runtime.morphPhase = getMorphPhaseStart(id);
-    runtime.orbitPhase = 0;
 
     const view = applyFractalPreset(runtime.tgt, id);
     const result = applyMacrosToTarget(get().macros, id, runtime.tgt, true);
@@ -174,13 +186,22 @@ export const useExplorerStore = create<ExplorerStore>((set, get) => ({
 
     Object.assign(get().atmosphereBaseline, result.atmosphere);
 
+    // Prefer fractal’s default snapshot atmosphere when present (e.g. KIFS FOV)
+    const defaultSnap = getSnapshots(id)[0];
+    let atmosphere = result.atmosphere;
+    if (defaultSnap?.atmosphere) {
+      atmosphere = { ...result.atmosphere, ...defaultSnap.atmosphere };
+      Object.assign(get().atmosphereBaseline, atmosphere);
+    }
+
     // Mutate existing baseline in place first so any in-flight evolve frame
     // that already grabbed the reference picks up the new framing
     const prevBaseline = get().macroBaseline;
     Object.assign(prevBaseline, runtime.tgt);
     prevBaseline.zoom = view.zoom;
-    prevBaseline.rotX = view.rotX;
-    prevBaseline.rotY = view.rotY;
+    prevBaseline.rotX = 0;
+    prevBaseline.rotY = 0;
+    prevBaseline.rotZ = 0;
     prevBaseline.panX = view.panX;
     prevBaseline.panY = view.panY;
     runtime.tgt.zoom = view.zoom;
@@ -189,12 +210,18 @@ export const useExplorerStore = create<ExplorerStore>((set, get) => ({
     runtime.cur.panX = view.panX;
     runtime.tgt.panY = view.panY;
     runtime.cur.panY = view.panY;
-    syncSphereOrbitToPitch(runtime.orbit, view.rotX);
+    runtime.tgt.rotX = pose.rotX;
+    runtime.tgt.rotY = pose.rotY;
+    runtime.cur.rotX = pose.rotX;
+    runtime.cur.rotY = pose.rotY;
+    runtime.cur.rotZ = pose.rotZ;
+    runtime.tgt.rotZ = pose.rotZ;
+    syncOrbitOffsetsFromPose(runtime.orbit, pose, id, orbitPhase);
 
-    const anchor = { ...view };
+    const anchor = { ...view, rotX: 0, rotY: 0 };
     set({
       fractalId: id,
-      atmosphere: result.atmosphere,
+      atmosphere,
       viewAnchor: anchor,
       macroBaseline: { ...prevBaseline },
       iters: result.iters,
@@ -208,14 +235,19 @@ export const useExplorerStore = create<ExplorerStore>((set, get) => ({
   setAutoEvolve: (v) => {
     const runtime = get().runtime;
     if (v) {
-      // Resume from current view — no phase reset, no snap to collapsed params.
       const cur = runtime.cur;
-      const baseline = { ...get().macroBaseline };
-      Object.assign(baseline, {
+      const zoom = cur.zoom;
+      syncOrbitOffsetsFromPose(runtime.orbit, {
         rotX: cur.rotX,
         rotY: cur.rotY,
         rotZ: cur.rotZ ?? 0,
-        zoom: cur.zoom,
+      }, get().fractalId, runtime.orbitPhase);
+      const baseline = { ...get().macroBaseline };
+      Object.assign(baseline, {
+        rotX: 0,
+        rotY: 0,
+        rotZ: 0,
+        zoom,
         panX: 0,
         panY: 0,
         power: cur.power,
@@ -225,15 +257,17 @@ export const useExplorerStore = create<ExplorerStore>((set, get) => ({
         glow: cur.glow,
         bright: cur.bright,
       });
+      // Keep exact release pose — do not rewrite cur from orbit (identity anyway)
+      cur.panX = 0;
+      cur.panY = 0;
+      Object.assign(runtime.tgt, cur);
       Object.assign(get().viewAnchor, {
-        rotX: cur.rotX,
-        rotY: cur.rotY,
-        zoom: cur.zoom,
+        rotX: 0,
+        rotY: 0,
+        zoom,
         panX: 0,
         panY: 0,
       });
-      Object.assign(runtime.tgt, cur);
-      syncSphereOrbitToPitch(runtime.orbit, cur.rotX);
       set({ macroBaseline: baseline, autoEvolve: v });
     } else {
       set({ atmosphere: { ...get().atmosphereBaseline }, autoEvolve: v });
@@ -341,21 +375,27 @@ export const useExplorerStore = create<ExplorerStore>((set, get) => ({
     Object.assign(get().viewAnchor, view);
     const anchor = get().viewAnchor;
     const baseline = get().macroBaseline;
-    // Zero offsets only — keep orbit seeds so resume continues the same tour path
-    const orientationChange =
-      view.rotX !== undefined ||
-      view.rotY !== undefined ||
-      view.panX !== undefined ||
-      view.panY !== undefined;
-    if (orientationChange) zeroOrbitOffsets(get().runtime.orbit);
-    if (view.rotX !== undefined) baseline.rotX = anchor.rotX;
-    if (view.rotY !== undefined) baseline.rotY = anchor.rotY;
+    const runtime = get().runtime;
+    if (view.rotX !== undefined || view.rotY !== undefined) {
+      syncOrbitOffsetsFromPose(runtime.orbit, {
+        rotX: anchor.rotX,
+        rotY: anchor.rotY,
+        rotZ: runtime.cur.rotZ ?? 0,
+      }, get().fractalId, runtime.orbitPhase);
+      baseline.rotX = 0;
+      baseline.rotY = 0;
+      baseline.rotZ = 0;
+      runtime.cur.rotX = anchor.rotX;
+      runtime.cur.rotY = anchor.rotY;
+      runtime.tgt.rotX = anchor.rotX;
+      runtime.tgt.rotY = anchor.rotY;
+    }
     if (view.panX !== undefined) baseline.panX = anchor.panX;
     if (view.panY !== undefined) baseline.panY = anchor.panY;
     if (view.zoom !== undefined) {
       baseline.zoom = anchor.zoom;
-      get().runtime.tgt.zoom = anchor.zoom;
-      get().runtime.cur.zoom = anchor.zoom;
+      runtime.tgt.zoom = anchor.zoom;
+      runtime.cur.zoom = anchor.zoom;
     }
   },
 
@@ -483,11 +523,19 @@ const initResult = applyMacrosToTarget(initial.macros, initial.fractalId, initia
 applyFractalPreset(initial.runtime.tgt, initial.fractalId);
 snapCameraToView(initial.runtime.cur, initView);
 Object.assign(initial.runtime.cur, initial.runtime.tgt);
-syncSphereOrbitToPitch(initial.runtime.orbit, initView.rotX);
+syncOrbitOffsetsFromPose(initial.runtime.orbit, {
+  rotX: initView.rotX,
+  rotY: initView.rotY,
+  rotZ: 0,
+}, initial.fractalId, 0);
+initial.runtime.cur.rotX = initView.rotX;
+initial.runtime.cur.rotY = initView.rotY;
+initial.runtime.tgt.rotX = initView.rotX;
+initial.runtime.tgt.rotY = initView.rotY;
 useExplorerStore.setState({
   atmosphere: initResult.atmosphere,
   atmosphereBaseline: { ...initResult.atmosphere },
-  viewAnchor: initView,
-  macroBaseline: { ...initial.runtime.tgt },
+  viewAnchor: { ...initView, rotX: 0, rotY: 0 },
+  macroBaseline: { ...initial.runtime.tgt, rotX: 0, rotY: 0, rotZ: 0 },
   iters: initResult.iters,
 });

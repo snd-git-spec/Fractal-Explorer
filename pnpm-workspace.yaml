@@ -2,4 +2,6 @@ packages:
   - '.'
 allowBuilds:
   '@tailwindcss/oxide': true
+  '@vgpu/adapter-node': set this to true or false
   esbuild: true
+  webgpu: set this to true or false

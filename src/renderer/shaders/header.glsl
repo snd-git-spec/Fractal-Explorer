@@ -46,6 +46,8 @@ float gOrbit = 1e5;
 float gFace = 1e5;
 // 1 = isoline shade (contour bands); set by fractal body when wanted
 float gIsoShade = 0.0;
+// 1 = form-locked colour — less hue spin / chords, lighting carries shape
+float gFormLock = 0.0;
 
 // Forward declarations for fractal functions
 float sceneSDE(vec3 p);

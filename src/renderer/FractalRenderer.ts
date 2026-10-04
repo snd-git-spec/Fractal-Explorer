@@ -7,7 +7,7 @@ import {
   ZOOM_MIN,
 } from '@/fractals/types';
 import { applyMacrosToTarget } from '@/fractals/macroMapper';
-import { updateEvolveTargets, syncSphereOrbitToPitch } from '@/fractals/evolveProfiles';
+import { updateEvolveTargets, syncOrbitOffsetsFromPose } from '@/fractals/evolveProfiles';
 import { AdaptiveQuality } from './AdaptiveQuality';
 import { CameraController } from './CameraController';
 import { FpsCounter, lerpCameraState } from './RenderLoop';
@@ -81,37 +81,32 @@ export class FractalRenderer {
       this.canvas,
       () => this.store.getState().runtime,
       undefined,
-      // Gesture end: absorb pose; resume free-sphere tour from here.
+      // Gesture end: continue from this exact pose + flick velocity (no path jump).
       () => {
         const state = this.store.getState();
-        const { cur, tgt } = state.runtime;
-        const pose = {
-          rotX: cur.rotX,
-          rotY: cur.rotY,
-          rotZ: cur.rotZ,
-          zoom: Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, cur.zoom)),
-          panX: cur.panX,
-          panY: cur.panY,
-        };
-        state.setViewAnchor({
-          rotX: pose.rotX,
-          rotY: pose.rotY,
-          zoom: pose.zoom,
-          panX: 0,
-          panY: 0,
-        });
-        syncSphereOrbitToPitch(state.runtime.orbit, pose.rotX);
-        state.runtime.orbit.roll = 0;
-        cur.rotX = pose.rotX;
-        cur.rotY = pose.rotY;
-        cur.rotZ = pose.rotZ;
-        cur.zoom = pose.zoom;
-        tgt.rotX = pose.rotX;
-        tgt.rotY = pose.rotY;
-        tgt.rotZ = pose.rotZ;
-        tgt.zoom = pose.zoom;
+        const { cur, tgt, orbit } = state.runtime;
+        const zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, cur.zoom));
+        syncOrbitOffsetsFromPose(
+          orbit,
+          { rotX: cur.rotX, rotY: cur.rotY, rotZ: cur.rotZ ?? 0 },
+          state.fractalId,
+          state.runtime.orbitPhase,
+        );
+        const baseline = state.getMacroBaseline();
+        baseline.rotX = 0;
+        baseline.rotY = 0;
+        baseline.rotZ = 0;
+        baseline.zoom = zoom;
+        const anchor = state.viewAnchor;
+        anchor.zoom = zoom;
+        anchor.panX = 0;
+        anchor.panY = 0;
+        cur.panX = 0;
+        cur.panY = 0;
         tgt.panX = 0;
         tgt.panY = 0;
+        cur.zoom = zoom;
+        tgt.zoom = zoom;
       },
       // Wheel zoom: update baseline only (no orbit reseed / resume kick).
       (zoom) => {
@@ -262,11 +257,13 @@ export class FractalRenderer {
     }
 
     if (evolveDt > 0) {
+      const gesturing = !!this.camera?.isGesturing();
       lerpCameraState(
         state.runtime,
         evolveDt,
         state.snapshotLerpBoost,
         state.autoEvolve,
+        gesturing,
       );
     }
 

@@ -4,7 +4,6 @@ import { useThrottledCamera } from '@/hooks/useThrottledCamera';
 import { getInstrument } from '@/fractals/instruments';
 import { ZOOM_MAX, ZOOM_MIN } from '@/fractals/types';
 import { useExplorerStore } from '@/state/ExplorerStore';
-import { useHudIntent } from './hud/HudIntentContext';
 
 function LabBody() {
   const camera = useThrottledCamera();
@@ -43,16 +42,14 @@ function LabBody() {
 
 export const LabPanel = memo(function LabPanel() {
   const uiMode = useExplorerStore((s) => s.uiMode);
-  const { rightActive, rightOpacity } = useHudIntent();
 
   if (uiMode !== 'lab') return null;
 
   return (
     <div
-      className="hud-rail absolute top-1/2 -translate-y-1/2 w-[160px] md:w-[178px] max-h-[min(78vh,580px)] overflow-y-auto pointer-events-auto px-[6px] py-[8px] [&::-webkit-scrollbar]:hidden"
+      className="hud-glass absolute top-1/2 -translate-y-1/2 w-[160px] md:w-[178px] max-h-[min(78vh,580px)] overflow-y-auto pointer-events-auto px-[14px] py-[12px] [&::-webkit-scrollbar]:hidden"
       style={{
         right: 'max(10px, var(--hud-safe-right))',
-        opacity: rightActive ? 1 : rightOpacity,
         scrollbarWidth: 'none',
       }}
       onPointerDown={(e) => e.stopPropagation()}

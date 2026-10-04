@@ -5,7 +5,6 @@ import type { MacroState, RemixMode } from '@/fractals/types';
 import { ZOOM_MAX, ZOOM_MIN } from '@/fractals/types';
 import { useThrottledCamera } from '@/hooks/useThrottledCamera';
 import { useExplorerStore } from '@/state/ExplorerStore';
-import { useHudIntent } from './hud/HudIntentContext';
 
 function EvolveCapsule({ speed }: { speed: number }) {
   const period = `${Math.max(0.7, 2.2 - speed * 1.1)}s`;
@@ -116,17 +115,15 @@ function InstrumentBody() {
 }
 
 export const ExpressPanel = memo(function ExpressPanel() {
-  const { rightActive, rightOpacity } = useHudIntent();
   const uiMode = useExplorerStore((s) => s.uiMode);
 
   if (uiMode !== 'express') return null;
 
   return (
     <div
-      className="hud-rail absolute right-[10px] top-1/2 -translate-y-1/2 w-[160px] md:w-[178px] max-h-[min(78vh,580px)] overflow-y-auto pointer-events-auto px-[6px] py-[8px] [&::-webkit-scrollbar]:hidden"
+      className="hud-glass absolute top-1/2 -translate-y-1/2 w-[160px] md:w-[178px] max-h-[min(78vh,580px)] overflow-y-auto pointer-events-auto px-[14px] py-[12px] [&::-webkit-scrollbar]:hidden"
       style={{
         right: 'max(10px, var(--hud-safe-right))',
-        opacity: rightActive ? 1 : rightOpacity,
         scrollbarWidth: 'none',
       }}
       onPointerDown={(e) => e.stopPropagation()}

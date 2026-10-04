@@ -1,15 +1,12 @@
 import { useEffect, useMemo } from 'react';
 import type { UiMode } from '@/fractals/types';
 import { useExplorerStore } from '@/state/ExplorerStore';
-import { useHudIntent } from './hud/HudIntentContext';
 
 export function ModeToggle() {
   const uiMode = useExplorerStore((s) => s.uiMode);
   const controlsOpen = useExplorerStore((s) => s.controlsOpen);
   const toggleControlsMode = useExplorerStore((s) => s.toggleControlsMode);
   const setControlsOpen = useExplorerStore((s) => s.setControlsOpen);
-  const { rightOpacity, rightActive, topActive } = useHudIntent();
-  const opacity = Math.max(rightOpacity, topActive ? 0.95 : 0.7, rightActive ? 1 : 0);
 
   const modes = useMemo(
     () =>
@@ -33,15 +30,14 @@ export function ModeToggle() {
 
   return (
     <div
-      className="hud-rail absolute pointer-events-auto"
+      className="absolute pointer-events-auto"
       style={{
         top: 'calc(28px + var(--hud-safe-top))',
         right: 'max(10px, var(--hud-safe-right))',
-        opacity,
       }}
       onPointerDown={(e) => e.stopPropagation()}
     >
-      <div className="flex gap-[2px]">
+      <div className="hud-glass flex gap-[2px] px-[10px] py-[6px]">
         {modes.map((m) => {
           const isActive = controlsOpen && uiMode === m.value;
           return (
@@ -49,7 +45,7 @@ export function ModeToggle() {
               key={m.value}
               type="button"
               onClick={() => toggleControlsMode(m.value)}
-              className={`hud-mode-btn min-h-[32px] md:min-h-[28px] min-w-[40px] px-[8px] py-[4px] text-[11px] md:text-[10px] cursor-pointer ${
+              className={`hud-mode-btn min-h-[28px] min-w-[40px] px-[8px] py-[4px] text-[11px] md:text-[10px] cursor-pointer ${
                 isActive ? 'is-active' : ''
               }`}
               aria-pressed={isActive}

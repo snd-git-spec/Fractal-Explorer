@@ -64,7 +64,8 @@ export function applyMacros(
 
 /** Map Void dial — keep fog from ever crushing the scene to black. */
   const atmosphere: AtmosphereState = {
-    fov: lerp(0.95, 2.0, v * w.voidFov),
+    // Floor at 1.55 — below ~1.3 reads as heavy fisheye / lensing warp
+    fov: lerp(1.55, 2.05, v * w.voidFov),
     fog: lerp(0.15, 0.85, v * w.voidFog),
     gamma: lerp(0.45, 0.72, v * w.voidGamma),
     vignette: lerp(0.35, 1.4, v * w.voidVignette),

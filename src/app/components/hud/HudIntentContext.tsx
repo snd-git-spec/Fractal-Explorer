@@ -99,7 +99,7 @@ export function HudIntentProvider({ children }: { children: ReactNode }) {
     };
   }, [leftMenu]);
 
-  const ghost = isDesktop ? 0.7 : 0.8;
+  const ghost = isDesktop ? 0.92 : 0.95;
   const full = 1;
 
   const value = useMemo<HudIntentValue>(

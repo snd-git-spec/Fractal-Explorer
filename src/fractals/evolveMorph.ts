@@ -47,7 +47,7 @@ const MORPH: Record<FractalId, EvolveMorphConfig> = {
   11: { ...BASE, powerMul: 3.0, bailoutMul: 2.4, warpMul: 2.3, detailMul: 2.4 },
   // Kleinian: recursive sponge morph
   12: { ...BASE, morphRate: 0.075, powerMul: 1.0, bailoutMul: 1.0, warpMul: 1.0, detailMul: 1.2 },
-  13: { ...BASE, powerMul: 2.5, bailoutMul: 2.0, warpMul: 2.8, detailMul: 1.8 },
+  13: { ...BASE, powerMul: 1.8, bailoutMul: 1.4, warpMul: 1.35, detailMul: 0.45 },
   14: { ...BASE, morphRate: 0.07, powerMul: 1.8, bailoutMul: 1.5, warpMul: 1.85, detailMul: 1.2 },
   15: { ...BASE, morphRate: 0.085, powerMul: 2.0, bailoutMul: 1.85, warpMul: 2.1, detailMul: 1.3 },
   16: { ...BASE, morphRate: 0.022, powerMul: 0.85, bailoutMul: 0.8, warpMul: 0.75, detailMul: 0.45 },

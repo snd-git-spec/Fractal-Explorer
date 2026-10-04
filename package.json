@@ -12,13 +12,16 @@
     "mediabunny": "^1.50.9",
     "react": "18.3.1",
     "react-dom": "18.3.1",
+    "vgpu": "^0.5.0",
     "zustand": "5.0.3"
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.1.12",
     "@types/react": "18.3.18",
     "@types/react-dom": "18.3.5",
+    "@vgpu/wgsl": "^0.5.0",
     "@vitejs/plugin-react": "4.7.0",
+    "@webgpu/types": "^0.1.72",
     "tailwindcss": "4.1.12",
     "typescript": "5.7.3",
     "vite": "6.3.5"

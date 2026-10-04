@@ -48,8 +48,8 @@ const DENSE_ORBIT_IDS: ReadonlySet<FractalId> = new Set<FractalId>([
 /** Keep screen-space motion calm: closer zoom + dense packings need slower turns. */
 function orbitPace(fractalId: FractalId, zoom: number): number {
   // Slow global tour — full sphere, unhurried
-  const byZoom = clamp(zoom / 3.2, 0.4, 0.8);
-  if (fractalId === 5) return byZoom * 0.72; // Dodeca — readable shell dive + yaw (was near-frozen)
+  const byZoom = clamp(zoom / 3.2, 0.35, 0.65);
+  if (fractalId === 5) return byZoom * 0.55;
   if (fractalId === 16) return byZoom * 0.28; // Penrose — close φ-caverns read motion hot
   if (fractalId === 17) return byZoom * 0.38; // hyperbolic FOV reads motion hot
   if (fractalId === 18) return byZoom * 0.22; // Tidefold — close dive reads motion hot; slow grand tour
@@ -71,25 +71,47 @@ const MORPH_FREQ2 = 1.05;
  * Dual-frequency latitude + continuous yaw → dense global covering (not a local skim).
  */
 const GOLDEN = 0.6180339887;
+/** Second incommensurate rate — fills longitude/latitude without repeating a belt. */
+const SILVER = 0.4142135623;
 
-/** Pitch clamp — near true poles (±~85°). Dodeca uses a milder cap (see apply). */
+/** Pitch clamp — near true poles (±~85°). */
 const POLE_MAX = 1.48;
-/** Dodeca: stay off the poles so the tour glides through shells, not through the solid. */
-const DODECA_POLE_MAX = 0.72;
 
-/** Tidefold: stay mid-latitudes — caverns read better than pole punches. */
-const TIDEFOLD_POLE_MAX = 0.95;
+/** Latitude amplitude — 1.0 = full pole-to-pole sweep on every fractal. */
+const LAT_AMP = 1.0;
 
-/** Align orbit so the next frames continue from this pitch (no jump). */
-export function syncSphereOrbitToPitch(orbit: CameraOrbit, rotX: number): void {
-  const x = clamp(rotX, -POLE_MAX, POLE_MAX);
-  orbit.rotX = x;
-  orbit.azimuth = 0;
-  orbit.rotY = 0;
-  orbit.zoom = 0;
-  orbit.roll = 0;
-  // Running latitude phase — advanceFreeSphereOrbit integrates this each frame
-  orbit.seeds.elPhase = Math.asin(clamp(x / POLE_MAX, -1, 1));
+/** Per-fractal zoom shell only — path latitude/longitude stay global. */
+interface ZoomShell {
+  zMinMul: number;
+  zMaxMul: number;
+  zoomAmpMul: number;
+}
+
+const DEFAULT_ZOOM_SHELL: ZoomShell = {
+  zMinMul: 0.35,
+  zMaxMul: 2.4,
+  zoomAmpMul: 1,
+};
+
+/** Dense / interior fractals — keep camera outside walls; do not shrink the sphere tour. */
+const ZOOM_SHELL: Partial<Record<FractalId, ZoomShell>> = {
+  7: { zMinMul: 0.82, zMaxMul: 1.32, zoomAmpMul: 0.26 },
+  8: { zMinMul: 0.88, zMaxMul: 1.22, zoomAmpMul: 0.2 },
+  12: { zMinMul: 0.8, zMaxMul: 1.38, zoomAmpMul: 0.28 },
+  13: { zMinMul: 0.72, zMaxMul: 1.45, zoomAmpMul: 0.32 },
+};
+
+function getZoomShell(fractalId: FractalId): ZoomShell {
+  return ZOOM_SHELL[fractalId] ?? DEFAULT_ZOOM_SHELL;
+}
+
+/** @deprecated use syncOrbitFromGesture */
+export function syncSphereOrbitToPitch(
+  orbit: CameraOrbit,
+  rotX: number,
+  rotY = 0,
+): void {
+  syncOrbitFromGesture(orbit, { rotX, rotY });
 }
 
 interface EvolveBehavior {
@@ -140,7 +162,16 @@ function resolveEvolveBehavior(phase: number): EvolveBehavior {
   return lerpBehavior(EVOLVE_CYCLE[idx], EVOLVE_CYCLE[nextIdx], t);
 }
 
-/** Wall-clock rates (rad/sec). Density/zoom pacing is applied once via orbitPace(dt). */
+function softPitch(raw: number): number {
+  return POLE_MAX * Math.tanh(raw / POLE_MAX);
+}
+
+function softPitchVel(raw: number, rawVel: number): number {
+  const th = Math.tanh(raw / POLE_MAX);
+  return (1 - th * th) * rawVel;
+}
+
+/** Wall-clock cruise rates (rad/sec). Density/zoom pacing applied via orbitPace(dt). */
 function sphereRates(
   seeds: CameraOrbit['seeds'],
   beh: EvolveBehavior,
@@ -148,134 +179,197 @@ function sphereRates(
   pathTime: number,
 ): { spin: number; elOmega: number; zoomOmega: number; zoomAmp: number } {
   const i = beh.intensity;
-  const d = seeds.azDir || 1;
-
-  // Dodeca: scale diving through recursive shells + steady yaw (readable motion)
-  if (fractalId === 5) {
-    const spin =
-      lerp(0.028, 0.042, i) *
-      d *
-      (0.9 + 0.2 * seeds.azRateScale) *
-      (1 + 0.12 * Math.sin(pathTime * 0.06 + seeds.azOffset));
-    const elOmega =
-      lerp(0.028, 0.042, i) * (0.9 + 0.25 * seeds.elRateScale);
-    const zoomOmega = lerp(0.09, 0.14, i);
-    // Relative zoom amplitude — applied vs baseline in updateEvolveTargets
-    const zoomAmp = 0.78 + i * 0.18;
-    return { spin, elOmega, zoomOmega, zoomAmp };
-  }
-
-  // Tidefold: spin-led wandering tour (not a straight meridian skim)
-  if (fractalId === 18) {
-    const spin =
-      lerp(0.038, 0.058, i) *
-      d *
-      (0.95 + 0.35 * seeds.azRateScale) *
-      (1 +
-        0.35 * Math.sin(pathTime * 0.041 + seeds.azOffset) +
-        0.22 * Math.sin(pathTime * 0.027 * GOLDEN + 1.3) +
-        0.14 * Math.sin(pathTime * 0.063 + seeds.zoomPhase));
-    // Latitude slower than yaw so path curves instead of sliding up a line
-    const elOmega =
-      lerp(0.016, 0.028, i) *
-      (0.9 + 0.35 * seeds.elRateScale) *
-      (1 + 0.2 * Math.sin(pathTime * 0.019 + seeds.azOffset));
-    const zoomOmega = lerp(0.012, 0.02, i);
-    const zoomAmp = 0.085 + i * 0.04;
-    return { spin, elOmega, zoomOmega, zoomAmp };
-  }
-
-  // Slow longitude — full meridians over minutes, not seconds
-  const spinBase =
-    lerp(0.022, 0.036, i) * (0.85 + 0.25 * seeds.azRateScale);
-  const spin =
-    spinBase *
-    d *
-    (1 +
-      0.14 * Math.sin(pathTime * 0.08 + seeds.azOffset) +
-      0.08 * Math.sin(pathTime * 0.05 * GOLDEN + seeds.zoomPhase));
-
-  // Latitude still visits poles often relative to yaw (global, not equatorial)
+  let spin =
+    lerp(0.034, 0.056, i) *
+    (0.9 + 0.3 * seeds.azRateScale) *
+    (1 + 0.04 * Math.sin(pathTime * 0.045 + seeds.azOffset));
+  if (fractalId === 13) spin *= 1.25;
   const elOmega =
-    lerp(0.038, 0.058, i) * (0.85 + 0.3 * seeds.elRateScale);
+    spin *
+    GOLDEN *
+    1.12 *
+    (0.85 + 0.3 * seeds.elRateScale) *
+    (1 + 0.04 * Math.sin(pathTime * 0.033 * GOLDEN + seeds.azOffset));
 
-  const zoomOmega = lerp(0.008, 0.012, i) * 0.6;
-  const zoomAmp = 0.016 + i * 0.014;
+  // Wide distance breathe — shell dive / pull-back (fraction of baseline)
+  let zoomOmega = lerp(0.035, 0.06, i);
+  let zoomAmp = 0.32 + i * 0.12;
+
+  // Dodeca: stronger scale-shell dive through nested generations
+  if (fractalId === 5) {
+    zoomOmega = lerp(0.07, 0.11, i);
+    zoomAmp = 0.55 + i * 0.15;
+  }
 
   return { spin, elOmega, zoomOmega, zoomAmp };
 }
 
+/** Quasi-ergodic path on S² — same global tour for every fractal. */
+function spherePathAt(
+  t: number,
+  seeds: CameraOrbit['seeds'],
+  lonBase: number,
+  yawRate: number,
+): { lon: number; rotX: number; yawVel: number; pitchVel: number } {
+  const w1 = yawRate;
+  const w2 = yawRate * GOLDEN * (0.88 + 0.24 * seeds.elRateScale);
+  const w3 = yawRate * (1 + SILVER) * (0.82 + 0.2 * seeds.azRateScale);
+
+  const lonWeave = lonWeaveAt(t, seeds, w1);
+  const lon = lonBase + w1 * t + lonWeave;
+
+  const latArg1 = w2 * t + seeds.elPhase;
+  const latArg2 = w3 * t + seeds.azOffset;
+  const latArg3 = w2 * GOLDEN * 2.4 * t + seeds.elPhase * 0.55 + 2.1;
+  const latArg4 = w3 * SILVER * 3.1 * t + seeds.azOffset * 0.72 + 0.85;
+  const lat = clamp(
+    0.38 * Math.sin(latArg1) +
+      0.3 * Math.sin(latArg2) +
+      0.18 * Math.sin(latArg3) +
+      0.14 * Math.sin(latArg4),
+    -1,
+    1,
+  );
+
+  const latRaw = POLE_MAX * LAT_AMP * lat;
+  const latVelRaw = POLE_MAX * LAT_AMP * (
+    0.38 * w2 * Math.cos(latArg1) +
+    0.3 * w3 * Math.cos(latArg2) +
+    0.18 * w2 * GOLDEN * 2.4 * Math.cos(latArg3) +
+    0.14 * w3 * SILVER * 3.1 * Math.cos(latArg4)
+  );
+
+  const rotX = softPitch(latRaw);
+  const yawVel =
+    w1 +
+    0.38 * w2 * Math.cos(w2 * t + seeds.elPhase) +
+    0.26 * w3 * Math.cos(w3 * t + seeds.azOffset * 0.41 + 1.05);
+  const pitchVel = softPitchVel(latRaw, latVelRaw);
+
+  return { lon, rotX, yawVel, pitchVel };
+}
+
+function lonWeaveAt(
+  t: number,
+  seeds: CameraOrbit['seeds'],
+  yawRate: number,
+): number {
+  const w2 = yawRate * GOLDEN * (0.88 + 0.24 * seeds.elRateScale);
+  const w3 = yawRate * (1 + SILVER) * (0.82 + 0.2 * seeds.azRateScale);
+  return (
+    0.38 * Math.sin(w2 * t + seeds.elPhase) +
+    0.26 * Math.sin(w3 * t + seeds.azOffset * 0.41 + 1.05) +
+    0.14 * Math.sin(w2 * GOLDEN * 1.9 * t + seeds.elPhase * 0.65 + 2.2)
+  );
+}
+
+function pathRollAt(
+  pathTime: number,
+  yawRate: number,
+  seeds: CameraOrbit['seeds'],
+  fractalId: FractalId,
+): { roll: number; rollVel: number } {
+  const amp = fractalId === 13 ? 1.3 : 1.0;
+  const wR = yawRate * 0.58 * (0.88 + 0.22 * seeds.elRateScale);
+  const wR2 = wR * GOLDEN * 1.35;
+  const wR3 = wR * SILVER * 2.2;
+  const a1 = wR * pathTime + seeds.elPhase;
+  const a2 = wR2 * pathTime + seeds.azOffset * 0.6;
+  const a3 = wR3 * pathTime + seeds.elPhase * 0.45 + 1.1;
+  const roll = amp * (
+    0.32 * Math.sin(a1) +
+    0.2 * Math.sin(a2) +
+    0.14 * Math.sin(a3)
+  );
+  const rollVel = amp * (
+    0.32 * wR * Math.cos(a1) +
+    0.2 * wR2 * Math.cos(a2) +
+    0.14 * wR3 * Math.cos(a3)
+  );
+  return { roll, rollVel };
+}
+
+/** Align orbit offsets so path + offset matches the current view pose. */
+export function syncOrbitOffsetsFromPose(
+  orbit: CameraOrbit,
+  pose: { rotX: number; rotY: number; rotZ?: number },
+  fractalId: FractalId,
+  pathTime: number,
+): void {
+  const beh = EVOLVE_CYCLE[2];
+  const { spin: yawRate } = sphereRates(orbit.seeds, beh, fractalId, pathTime);
+  const path = spherePathAt(pathTime, orbit.seeds, orbit.azimuth, yawRate);
+  const { roll } = pathRollAt(pathTime, yawRate, orbit.seeds, fractalId);
+  orbit.lonOffset = pose.rotY - path.lon;
+  orbit.latOffset = pose.rotX - path.rotX;
+  orbit.rollOffset = (pose.rotZ ?? 0) - roll;
+}
+
+/** @deprecated use syncOrbitOffsetsFromPose */
+export function syncOrbitFromGesture(
+  orbit: CameraOrbit,
+  pose: { rotX: number; rotY: number; rotZ?: number },
+  fractalId: FractalId = 0,
+  pathTime = 0,
+): void {
+  orbit.zoom = 0;
+  orbit.panX = 0;
+  orbit.panY = 0;
+  orbit.roll = pose.rotZ ?? 0;
+  orbit.yawVel = 0;
+  orbit.pitchVel = 0;
+  syncOrbitOffsetsFromPose(orbit, pose, fractalId, pathTime);
+}
+
 /**
- * Integrate sphere pose with wall dt so motion cannot freeze when orbitPhase is tiny/reset.
- * Mutates seeds.elPhase / zoomPhase as running integrators.
+ * Parametric global sphere — longitude + latitude from path clock (orbitPhase).
+ * Pace scaling applies to zoom only.
  */
 function advanceFreeSphereOrbit(
   orbit: CameraOrbit,
-  dt: number,
+  _movDt: number,
+  zoomDt: number,
   pathTime: number,
   beh: EvolveBehavior,
   fractalId: FractalId,
   baselineZoom = 2.2,
 ): void {
-  if (dt <= 0) return;
-
-  const { spin, elOmega, zoomOmega, zoomAmp } = sphereRates(
+  const { spin: yawRate, zoomOmega, zoomAmp } = sphereRates(
     orbit.seeds,
     beh,
     fractalId,
     pathTime,
   );
+  const zoomShell = getZoomShell(fractalId);
+  const breatheAmp = zoomAmp * zoomShell.zoomAmpMul;
 
-  // Continuous longitude — never resets except on explicit gesture sync
-  orbit.azimuth += dt * spin;
-  orbit.seeds.elPhase += dt * elOmega;
-  orbit.seeds.zoomPhase += dt * zoomOmega;
+  const { lon, rotX, yawVel, pitchVel } = spherePathAt(
+    pathTime,
+    orbit.seeds,
+    orbit.azimuth,
+    yawRate,
+  );
 
-  if (fractalId === 5) {
-    // Mild latitude — explore around the solid, don't plunge poles through it
-    const e1 = Math.sin(orbit.seeds.elPhase);
-    const e2 = Math.sin(orbit.seeds.elPhase * GOLDEN + orbit.seeds.azOffset);
-    const lat = clamp(0.7 * e1 + 0.3 * e2, -1, 1);
-    orbit.rotX = DODECA_POLE_MAX * lat;
-    orbit.rotY = orbit.azimuth;
-    // Scale-shell dive: large relative zoom so you travel nested generations
+  orbit.rotY = lon;
+  orbit.rotX = rotX;
+  const { roll, rollVel } = pathRollAt(pathTime, yawRate, orbit.seeds, fractalId);
+  orbit.roll = roll;
+  orbit.yawVel = yawVel;
+  orbit.pitchVel = pitchVel;
+  orbit.rollVel = rollVel;
+
+  if (zoomDt > 0) {
+    orbit.seeds.zoomPhase += zoomDt * zoomOmega;
+
     const zPh = orbit.seeds.zoomPhase;
-    orbit.zoom =
-      baselineZoom *
-      (Math.sin(zPh) * zoomAmp * 0.55 +
-        Math.sin(zPh * 1.618 + 0.7) * zoomAmp * 0.28 +
-        Math.sin(zPh * 0.37 + 1.9) * zoomAmp * 0.12);
-  } else if (fractalId === 18) {
-    // Triple incommensurate pitch + yaw wobble → curved path, not a straight skim
-    const e1 = Math.sin(orbit.seeds.elPhase);
-    const e2 = Math.sin(orbit.seeds.elPhase * (1.0 + GOLDEN) + orbit.seeds.azOffset);
-    const e3 = Math.sin(orbit.seeds.elPhase * GOLDEN * 2.7 + pathTime * 0.031);
-    const e4 = Math.sin(orbit.seeds.elPhase * 0.37 + pathTime * 0.017 + 2.1);
-    const lat = clamp(0.42 * e1 + 0.28 * e2 + 0.18 * e3 + 0.12 * e4, -1, 1);
-    orbit.rotX = TIDEFOLD_POLE_MAX * lat;
-    // Extra yaw weave on top of continuous spin
-    orbit.rotY =
-      orbit.azimuth +
-      Math.sin(pathTime * 0.033 + orbit.seeds.azOffset) * 0.55 +
-      Math.sin(pathTime * 0.019 * GOLDEN + 1.7) * 0.32;
-    const zPh = orbit.seeds.zoomPhase;
-    orbit.zoom =
-      Math.sin(zPh) * zoomAmp * 0.55 +
-      Math.sin(zPh * 1.618 + 0.8) * zoomAmp * 0.28 +
-      Math.sin(zPh * 0.41 + 1.4) * zoomAmp * 0.17;
-  } else {
-    // Dual incommensurate latitudes → dense sphere covering
-    const e1 = Math.sin(orbit.seeds.elPhase);
-    const e2 = Math.sin(orbit.seeds.elPhase * (1.0 + GOLDEN) + orbit.seeds.azOffset);
-    const e3 = Math.sin(orbit.seeds.elPhase * GOLDEN * 2.3 + pathTime * 0.02);
-    const lat = clamp(0.58 * e1 + 0.27 * e2 + 0.15 * e3, -1, 1);
-
-    orbit.rotX = POLE_MAX * lat;
-    orbit.rotY = orbit.azimuth;
-    orbit.zoom =
-      Math.sin(orbit.seeds.zoomPhase) * zoomAmp * 0.4 +
-      Math.sin(orbit.seeds.zoomPhase * 1.7 + 0.9) * zoomAmp * 0.18;
+    const zoomWave =
+      Math.sin(zPh) * breatheAmp * 0.42 +
+      Math.sin(zPh * 1.618 + 0.7) * breatheAmp * 0.24 +
+      Math.sin(zPh * 0.37 + 1.9) * breatheAmp * 0.1;
+    const zoomTarget = baselineZoom * zoomWave;
+    orbit.zoom += (zoomTarget - orbit.zoom) * (1 - Math.exp(-zoomDt * 0.45));
   }
+
   orbit.panX = 0;
   orbit.panY = 0;
 }
@@ -294,8 +388,8 @@ function evolveAtmosphere(
       baseline.fov +
         Math.sin(p * f) * 0.1 * a +
         Math.cos(p * f * 0.618 + 1) * 0.06 * a,
-      1.05,
-      crisp ? 1.7 : 1.95,
+      1.5,
+      crisp ? 1.7 : 2.05,
     ),
     fog: clamp(
       baseline.fog +
@@ -612,65 +706,56 @@ function morphColor(
 export function updateEvolveTargets(ctx: EvolveContext): EvolveResult {
   const { tgt, baseline, atmosphereBaseline, orbit, dt, evolveSpeed: spd, fractalId } = ctx;
   const morph = getEvolveMorph(fractalId);
-  // All clocks follow Evolve Speed so lowering the dial slows camera + shape together
-  const speedScale = spd / 0.3;
+  // Evolve Speed = fractal morph / colour / atmosphere only — camera is independent
+  const morphScale = spd / 0.3;
   const p      = ctx.evolvePhase + dt * spd * PHASE_RATE;
-  const morphP = ctx.morphPhase  + dt * morph.morphRate * speedScale;
+  const morphP = ctx.morphPhase  + dt * morph.morphRate * morphScale;
   const beh = resolveEvolveBehavior(p);
 
-  // Freeze view while aiming — do not advance sphere integrators
-  const orbitP = ctx.holdView
-    ? ctx.orbitPhase
-    : ctx.orbitPhase + dt * speedScale;
+  // Path clock = wall time (global tour). Pace only calms zoom breathe on dense fractals.
+  const pace = orbitPace(fractalId, baseline.zoom);
+  const orbitSpd = 0.28 + 0.42 * clamp(spd / 0.3, 0.5, 1.0);
+  const pathDt = dt * orbitSpd;
+  const zoomDt = pathDt * pace;
 
-  if (!ctx.holdView) {
-    // Wall-clock sphere tour (dt) — independent of the old near-frozen orbitPhase sampler
-    const pace = orbitPace(fractalId, baseline.zoom);
-    advanceFreeSphereOrbit(
+  const orbitP = ctx.orbitPhase + pathDt;
+
+  advanceFreeSphereOrbit(
+    orbit,
+    pathDt,
+    ctx.holdView ? 0 : zoomDt,
+    orbitP,
+    beh,
+    fractalId,
+    baseline.zoom,
+  );
+
+  if (ctx.holdView) {
+    syncOrbitOffsetsFromPose(
       orbit,
-      dt * speedScale * pace,
-      orbitP,
-      beh,
+      { rotX: tgt.rotX, rotY: tgt.rotY, rotZ: tgt.rotZ },
       fractalId,
-      baseline.zoom,
+      orbitP,
     );
-
-    tgt.rotY = baseline.rotY + orbit.azimuth;
-    if (fractalId === 5) {
-      // Mild pitch — recursion dive is in zoom, not polar punch-through
-      tgt.rotX = clamp(orbit.rotX, -DODECA_POLE_MAX, DODECA_POLE_MAX);
-      orbit.roll += dt * speedScale * 0.018;
-      tgt.rotZ = (baseline.rotZ ?? 0) + orbit.roll;
-      // Wide zoom band: pull out to large shells, dive into nested generations
-      const zMin = Math.max(ZOOM_MIN, baseline.zoom * 0.2);
-      const zMax = Math.max(zMin + 0.2, baseline.zoom * 3.2);
-      tgt.zoom = clamp(baseline.zoom + orbit.zoom, zMin, zMax);
-    } else if (fractalId === 18) {
-      // Spin-led cavern tour — yaw weave + lens roll, gentle pitch
-      tgt.rotX = clamp(orbit.rotX, -TIDEFOLD_POLE_MAX, TIDEFOLD_POLE_MAX);
-      tgt.rotY = baseline.rotY + orbit.rotY;
-      orbit.roll +=
-        dt *
-        speedScale *
-        (0.045 + 0.02 * Math.sin(orbitP * 0.07 + 0.4));
-      tgt.rotZ = (baseline.rotZ ?? 0) + orbit.roll;
-      const zMin = Math.max(ZOOM_MIN, baseline.zoom * 0.55);
-      const zMax = Math.max(zMin + 0.15, baseline.zoom * 1.85);
-      tgt.zoom = clamp(baseline.zoom + orbit.zoom, zMin, zMax);
-    } else {
-      tgt.rotX = clamp(orbit.rotX, -POLE_MAX, POLE_MAX);
-      orbit.roll += dt * speedScale * 0.026;
-      tgt.rotZ = (baseline.rotZ ?? 0) + orbit.roll;
-      const zMin = ZOOM_MIN;
-      const zMax = Math.max(zMin + 0.04, baseline.zoom * 1.15);
-      tgt.zoom = clamp(baseline.zoom + orbit.zoom, zMin, zMax);
-    }
-    tgt.panX = baseline.panX;
-    tgt.panY = baseline.panY;
+  } else {
+    const zoomShell = getZoomShell(fractalId);
+    tgt.rotY = orbit.rotY + orbit.lonOffset;
+    tgt.rotX = softPitch(orbit.rotX + orbit.latOffset);
+    tgt.rotZ = orbit.roll + orbit.rollOffset;
+    const zMin = Math.max(ZOOM_MIN, baseline.zoom * zoomShell.zMinMul);
+    const zMax = Math.max(
+      zMin + 0.25,
+      baseline.zoom * (fractalId === 5 ? 3.0 : zoomShell.zMaxMul),
+    );
+    tgt.zoom = clamp(baseline.zoom + orbit.zoom, zMin, zMax);
+    tgt.panX = 0;
+    tgt.panY = 0;
   }
 
-  morphFractalShape(tgt, baseline, morphP, beh, fractalId);
-  morphColor(tgt, baseline, p, morphP, beh, fractalId);
+  if (!ctx.holdView) {
+    morphFractalShape(tgt, baseline, morphP, beh, fractalId);
+    morphColor(tgt, baseline, p, morphP, beh, fractalId);
+  }
 
   return {
     phase: p,
@@ -678,6 +763,8 @@ export function updateEvolveTargets(ctx: EvolveContext): EvolveResult {
     orbitPhase: orbitP,
     atmosphere: evolveAtmosphere(atmosphereBaseline, p, beh, fractalId),
     paletteIdx: evolvePalette(ctx.paletteIdx, p, beh),
-    iters: morphDetail(ctx.iters, morphP, beh, fractalId),
+    iters: ctx.holdView
+      ? ctx.iters
+      : morphDetail(ctx.iters, morphP, beh, fractalId),
   };
 }

@@ -18,7 +18,7 @@ export const FRACTALS: FractalMeta[] = [
   { id: 10, slug: 'mandelbroth', name: 'Mandelbroth', label: 'Bulb × Box Hybrid', equation: 'Odd steps: z→zⁿ+c (Bulb) · Even steps: box-fold+sphere-fold (Box)  ·  Mandelbroth — two formulas fighting each iteration' },
   { id: 11, slug: 'amazing-surf', name: 'Amazing Surf', label: '2D-fold Layers', equation: '2D box-fold + sphere-fold + scale  ·  Amazing Surf (Kali, 2012)' },
   { id: 12, slug: 'kleinian', name: 'Kleinian', label: 'Infinite Fold Sponge', equation: 'S = ⋃ scⁿ·K — boxfold∘spherefold×sc + z₀ · L∞ shells inward & outward  ·  Nested cavities forever' },
-  { id: 13, slug: 'kifs', name: 'KIFS', label: 'Kaleidoscopic Folds', equation: 'Abs-fold ∘ Rotate ∘ Scale − Offset  ·  Kaleidoscopic IFS (Knighty / Syntopia)' },
+  { id: 13, slug: 'kifs', name: 'KIFS', label: 'Infinite Kaleidoscopic IFS', equation: 'Fold_octa ∘ (p ↦ s p − τ)  ·  S = ⋃ sᵏ·A (L∞ shells)  ·  Knighty KIFS — infinite nested halls' },
   { id: 14, slug: 'kali', name: 'Kali Set', label: 'Inversion Julia', equation: 'p → |p|/|p|² − C  ·  Kali Set (Fragmentarium) — morphing cavern lattice' },
   { id: 15, slug: 'jerusalem-cube', name: 'Jerusalem Cube', label: 'Infinite Greek-Cross Temple', equation: 'S = ⋃ scᵏ·A — cross-cut cubes (vA/vB) self-similar inward & outward  ·  Infinite Jerusalem temple' },
   { id: 16, slug: 'penrose-quasicrystal', name: 'Penrose Quasicrystal', label: 'φ-Cavern Lattice', equation: 'abs ∘ invert ∘ icosa-trap  ·  Immersive golden Kali caverns (5-fold / φ)' },

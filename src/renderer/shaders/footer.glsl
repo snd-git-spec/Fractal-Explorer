@@ -142,13 +142,18 @@ vec3 surfaceTint(vec3 p, vec3 nor, float ao, float tHit, float trapRaw, float fa
   float faceFld = pow(clamp(faceRaw, 0.0, 1.0), 0.7);
   float faceN = faceFromNormal(p, nor);
 
-  // Strong form-driven spin — different faces/depths land in different palette regions
   float spinSrc = mix(faceN, mix(trap, faceFld, hasFace * 0.55), max(hasTrap, hasFace));
-  float hueSpin = fract(spinSrc * 2.6 + u_colorShift * 0.95 + t * 0.45);
+  // Form-lock: slower hue walk so light/AO define shape instead of rainbow chatter
+  float spinAmt = mix(2.6, 0.85, gFormLock);
+  float hueSpin = fract(spinSrc * spinAmt + u_colorShift * mix(0.95, 0.35, gFormLock) + t * mix(0.45, 0.18, gFormLock));
   hueSpinOut = hueSpin;
 
-  // Wide chord across the palette for living surface colour
   vec3 a = paletteAt(u_palette, t, hueSpin);
+  if (gFormLock > 0.5) {
+    // One primary sample + soft neighbour — readable face bands
+    vec3 b = paletteAt(u_palette, fract(t + 0.12), hueSpin * 0.5);
+    return mix(a, b, 0.18);
+  }
   vec3 b = paletteAt(u_palette, fract(t + 0.22), hueSpin);
   vec3 c = paletteAt(u_palette, fract(t + 0.48), hueSpin * 0.85);
   return mix(mix(a, b, 0.4), c, 0.22);
@@ -176,9 +181,31 @@ float rayMarch(vec3 ro, vec3 rd, out int steps) {
 
 void main() {
   vec2 uv = (gl_FragCoord.xy - 0.5 * u_res) / u_res.y;
-  mat3 camRot = mRotY(u_rotY) * mRotX(u_rotX) * mRotZ(u_rotZ);
-  vec3 ro = camRot * vec3(0, 0, u_zoom) + vec3(u_pan, 0);
-  vec3 rd = camRot * normalize(vec3(uv, -u_fov));
+
+  // True spherical orbit — camera on a sphere, always targeting the origin.
+  // Y uses -sin(pitch) to match legacy mRotY*mRotX drag conventions.
+  float cp = cos(u_rotX);
+  float sp = sin(u_rotX);
+  float cy = cos(u_rotY);
+  float sy = sin(u_rotY);
+  vec3 ro = u_zoom * vec3(cp * sy, -sp, cp * cy);
+
+  vec3 fwd = normalize(-ro);
+  float poleW = smoothstep(0.88, 0.995, abs(fwd.y));
+  vec3 upPole = vec3(0.0, 0.0, sign(fwd.y));
+  vec3 worldUp = normalize(mix(vec3(0.0, 1.0, 0.0), upPole, poleW));
+  vec3 rt = cross(worldUp, fwd);
+  float rtLen = length(rt);
+  rt = rtLen > 1e-5 ? rt / rtLen : normalize(vec3(1.0, 0.0, 0.0));
+  vec3 up = cross(fwd, rt);
+
+  float cr = cos(u_rotZ);
+  float sr = sin(u_rotZ);
+  vec3 rtR = normalize(rt * cr + up * sr);
+  vec3 upR = cross(fwd, rtR);
+
+  ro += rtR * u_pan.x + upR * u_pan.y;
+  vec3 rd = normalize(fwd + rtR * (uv.x / u_fov) + upR * (uv.y / u_fov));
   int steps;
   float t = rayMarch(ro, rd, steps);
   vec3 col = vec3(0);
@@ -208,9 +235,9 @@ void main() {
     vec3 rimCol = paletteAt(u_palette, clamp(phase + 0.12, 0.0, 1.0), hueSpin);
 
     float key = dif1 * sha;
-    float fill = dif2 * 0.42;
-    float amb = 0.16;
-    float lum = amb + 0.85 * key + fill;
+    float fill = dif2 * mix(0.42, 0.28, gFormLock);
+    float amb = mix(0.16, 0.1, gFormLock);
+    float lum = amb + mix(0.85, 1.05, gFormLock) * key + fill;
 
     if (gIsoShade > 0.5) {
       // Isolines: thin contour bands of orbit depth + radius (topo on the solid)
@@ -232,12 +259,15 @@ void main() {
       float edge = pow(1.0 - abs(dot(nor, normalize(-p + vec3(0.001)))), 2.8);
       col = baseCol * lum;
       col += fill * baseCol * 0.22;
-      col += fres * rimCol * (0.5 + 0.85 * u_bright);
-      col += edge * rimCol * 0.16;
-      col *= mix(0.82, 1.0, ao);
+      // Form-lock: dial back rainbow fresnel so shading reads as 3D form
+      float fresAmt = mix(0.5 + 0.85 * u_bright, 0.22 + 0.35 * u_bright, gFormLock);
+      float edgeAmt = mix(0.16, 0.08, gFormLock);
+      col += fres * rimCol * fresAmt;
+      col += edge * rimCol * edgeAmt;
+      col *= mix(mix(0.82, 1.0, ao), mix(0.7, 1.0, ao), gFormLock);
       vec3 halfV = normalize(lig1 - rd);
-      float spec = pow(max(dot(nor, halfV), 0.0), 36.0);
-      col += spec * (0.85 + 0.55 * u_bright) * mix(vec3(1.0), rimCol, 0.55) * sha;
+      float spec = pow(max(dot(nor, halfV), 0.0), mix(36.0, 48.0, gFormLock));
+      col += spec * (0.85 + 0.55 * u_bright) * mix(vec3(1.0), rimCol, mix(0.55, 0.3, gFormLock)) * sha;
       col = mix(col, vec3(0.0, 0.002, 0.01), clamp(t / MAX_DIST * 1.15 * u_fog, 0.0, 1.0));
     }
   } else {

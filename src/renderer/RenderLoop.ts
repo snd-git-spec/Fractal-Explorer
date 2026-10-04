@@ -8,14 +8,21 @@ const SNAPSHOT_LERP = 0.12;
  * Time constants for frame-rate-independent exponential lerp during auto-evolve.
  * k = 1 - exp(-dt / TAU)  — same perceived speed at any frame rate.
  */
-// Keep this short — a long tau makes post-drag resume look frozen while lag rebuilds.
-const ROT_TAU   = 0.45;  // seconds — follow poles/longitude without feeling stuck sideways
 const PARAM_TAU = 1.8;  // seconds — shape morph catches up
 const COLOR_TAU = 4.5;  // seconds — hue eases slowly (git mapping feel)
 const PAN_TAU   = 0.9;  // seconds — pan snaps back to centre
+const ROT_TAU   = 0.38; // seconds — orbit eases (no snap jumps)
 
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
+}
+
+/** Shortest arc for lens roll. */
+function lerpAngle(a: number, b: number, t: number): number {
+  let d = b - a;
+  while (d > Math.PI) d -= 2 * Math.PI;
+  while (d < -Math.PI) d += 2 * Math.PI;
+  return a + d * t;
 }
 
 function lerpField(state: ExplorerRuntimeState, k: number, key: keyof ExplorerRuntimeState['cur']): void {
@@ -27,21 +34,21 @@ export function lerpCameraState(
   dt: number,
   snapshotBoost = false,
   autoEvolve = false,
-  /** Optional shorter rotation tau (e.g. post-gesture resume). */
-  rotTau = ROT_TAU,
+  gesturing = false,
 ): void {
+  if (gesturing) return;
+
   if (autoEvolve) {
-    const rotK   = 1 - Math.exp(-dt / Math.max(0.15, rotTau));
+    const rotK = 1 - Math.exp(-dt / ROT_TAU);
+    state.cur.rotY = lerp(state.cur.rotY, state.tgt.rotY, rotK);
+    state.cur.rotX = lerp(state.cur.rotX, state.tgt.rotX, rotK);
+    state.cur.rotZ = lerpAngle(state.cur.rotZ, state.tgt.rotZ, rotK);
     const paramK = 1 - Math.exp(-dt / PARAM_TAU);
     const colorK = 1 - Math.exp(-dt / COLOR_TAU);
-    const panK   = 1 - Math.exp(-dt / PAN_TAU);   // pan snaps to centre fast
-    lerpField(state, rotK,   'rotX');
-    lerpField(state, rotK,   'rotY');
-    lerpField(state, rotK,   'rotZ');
-    // Zoom snaps — slow PARAM_TAU lerp left framing stuck inside the set after fractal switch
+    const panK   = 1 - Math.exp(-dt / PAN_TAU);
     state.cur.zoom = state.tgt.zoom;
-    lerpField(state, panK,   'panX');  // fast snap to 0
-    lerpField(state, panK,   'panY');  // fast snap to 0
+    lerpField(state, panK,   'panX');
+    lerpField(state, panK,   'panY');
     lerpField(state, paramK, 'power');
     lerpField(state, paramK, 'bailout');
     lerpField(state, paramK, 'cx');

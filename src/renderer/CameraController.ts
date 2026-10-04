@@ -4,10 +4,9 @@ import { ZOOM_MAX, ZOOM_MIN } from '@/fractals/types';
 /** Touch: precision first — previous gains spun too fast on phones. */
 const TOUCH_BASE_YAW = 0.85;
 const TOUCH_BASE_PITCH = 0.5;
-/** Mouse: a bit hotter than touch, still speed-aware. */
-const MOUSE_BASE_YAW = 2.4;
-const MOUSE_BASE_PITCH = 1.25;
-const SPEED_REF = 3.2;
+/** Mouse: moderate gain — previous 2.4 rad per full-screen drag felt rushed. */
+const MOUSE_BASE_YAW = 1.65;
+const MOUSE_BASE_PITCH = 0.88;
 const VEL_SMOOTH = 0.28;
 /** Suppress synthetic mouse events that follow touch on mobile. */
 const MOUSE_SUPPRESS_MS = 900;
@@ -36,6 +35,10 @@ export class CameraController {
 
   isGesturing(): boolean {
     return this.isDragging;
+  }
+
+  getGestureVelocity(): { yaw: number; pitch: number } {
+    return { yaw: this.velYaw, pitch: this.velPitch };
   }
 
   attach(): void {
@@ -88,7 +91,7 @@ export class CameraController {
     const runtime = this.getState();
     for (const s of [runtime.tgt, runtime.cur]) {
       s.rotY += dYaw;
-      s.rotX = Math.max(-1.28, Math.min(1.28, s.rotX + dPitch));
+      s.rotX = Math.max(-1.48, Math.min(1.48, s.rotX + dPitch));
     }
   }
 
@@ -115,14 +118,12 @@ export class CameraController {
     baseYaw: number,
     basePitch: number,
   ): void {
-    const speed = Math.hypot(dx, dy) / dt;
-    const speedGain = 0.7 + 0.55 * Math.min(1, speed / SPEED_REF);
-    const dYaw = dx * baseYaw * speedGain;
-    const dPitch = dy * basePitch * speedGain;
+    const dYaw = dx * baseYaw;
+    const dPitch = -dy * basePitch;
     this.applyRot(dYaw, dPitch);
 
-    const instantYaw = dYaw / dt;
-    const instantPitch = dPitch / dt;
+    const instantYaw = dYaw / Math.max(dt, 1e-3);
+    const instantPitch = dPitch / Math.max(dt, 1e-3);
     this.velYaw += (instantYaw - this.velYaw) * VEL_SMOOTH;
     this.velPitch += (instantPitch - this.velPitch) * VEL_SMOOTH;
   }

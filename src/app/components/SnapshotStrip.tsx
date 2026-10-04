@@ -22,7 +22,7 @@ export const SnapshotStrip = memo(function SnapshotStrip() {
             key={s.name}
             type="button"
             onClick={() => applySnapshot(s.name)}
-            className="hud-fractal-name shrink-0 min-h-[24px] text-[9px] tracking-[0.5px] px-[6px] py-[3px] cursor-pointer"
+            className="hud-fractal-name hud-glass shrink-0 min-h-[28px] text-[9px] tracking-[0.5px] px-[10px] py-[4px] cursor-pointer"
           >
             {s.name}
           </button>

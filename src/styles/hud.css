@@ -43,16 +43,24 @@
   letter-spacing: 0.06em;
   color: var(--hud-ink);
   text-shadow: var(--hud-text-shadow);
+  cursor: pointer;
+  transition: color 150ms ease, background 150ms ease;
+}
+
+/* Bare text controls (no glass chrome) — never fight .hud-glass */
+.hud-fractal-name:not(.hud-glass),
+.hud-action:not(.hud-glass),
+.hud-mode-btn:not(.hud-glass) {
   background: transparent;
   border: none;
   border-radius: 2px;
-  cursor: pointer;
-  transition: color 150ms ease, background 150ms ease;
 }
 
 .hud-label,
 .hud-value {
   cursor: default;
+  background: transparent;
+  border: none;
 }
 
 .hud-fractal-name:hover,
@@ -149,6 +157,23 @@
   -webkit-backdrop-filter: blur(10px);
   border: 1px solid var(--hud-border);
   border-radius: 4px;
+}
+
+/*
+ * Exact Record chrome: light frost only — never a dark panel.
+ * Definition from blur + faint light edge, not a navy fill.
+ */
+.hud-glass,
+.hud-glass-box {
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: none;
+  border-radius: 2px;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  isolation: isolate;
 }
 
 .hud-sheet-glass {

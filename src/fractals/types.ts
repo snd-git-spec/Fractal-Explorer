@@ -50,6 +50,16 @@ export interface CameraOrbit {
   azimuth: number;
   /** Lens roll offset (view-axis spin). */
   roll: number;
+  /** Live yaw rate (rad/s) — blends from gesture into cruise. */
+  yawVel: number;
+  /** Live pitch rate (rad/s) — blends from gesture into cruise. */
+  pitchVel: number;
+  /** Lens roll rate (rad/s). */
+  rollVel: number;
+  /** Finger offset from auto path — keeps release smooth. */
+  lonOffset: number;
+  latOffset: number;
+  rollOffset: number;
   seeds: OrbitSeeds;
 }
 
@@ -73,6 +83,12 @@ export const DEFAULT_ORBIT: CameraOrbit = {
   panY: 0,
   azimuth: 0,
   roll: 0,
+  yawVel: 0,
+  pitchVel: 0,
+  rollVel: 0,
+  lonOffset: 0,
+  latOffset: 0,
+  rollOffset: 0,
   seeds: { ...DEFAULT_SEEDS },
 };
 
@@ -86,7 +102,7 @@ export function seedOrbit(orbit: CameraOrbit): void {
     elPhase: Math.random() * Math.PI * 2,
     azRateScale: 0.65 + Math.random() * 0.85,
     elRateScale: 0.55 + Math.random() * 1.0,
-    azDir: Math.random() < 0.5 ? -1 : 1,
+    azDir: 1,
   };
 }
 
@@ -99,6 +115,12 @@ export function zeroOrbitOffsets(orbit: CameraOrbit): void {
   orbit.panY = 0;
   orbit.azimuth = 0;
   orbit.roll = 0;
+  orbit.yawVel = 0;
+  orbit.pitchVel = 0;
+  orbit.rollVel = 0;
+  orbit.lonOffset = 0;
+  orbit.latOffset = 0;
+  orbit.rollOffset = 0;
 }
 
 export function resetOrbit(orbit: CameraOrbit): void {
