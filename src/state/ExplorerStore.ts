@@ -139,7 +139,7 @@ function applySnapshotToState(
 }
 
 export const useExplorerStore = create<ExplorerStore>((set, get) => ({
-  fractalId: 18,
+  fractalId: 7,
   paletteIdx: 8,
   autoEvolve: true,
   uiVisible: true,
