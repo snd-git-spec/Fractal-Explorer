@@ -8,6 +8,7 @@ import { useHudIntent } from './hud/HudIntentContext';
 export const FractalSelector = memo(function FractalSelector() {
   const fractalId = useExplorerStore((s) => s.fractalId);
   const setFractalId = useExplorerStore((s) => s.setFractalId);
+  const setControlsOpen = useExplorerStore((s) => s.setControlsOpen);
   const { isDesktop, leftMenu, toggleLeftMenu, closeLeftMenu } = useHudIntent();
 
   const current = useMemo(() => FRACTALS[fractalId], [fractalId]);
@@ -18,6 +19,11 @@ export const FractalSelector = memo(function FractalSelector() {
   const pick = (id: FractalId) => {
     setFractalId(id);
     closeLeftMenu();
+  };
+
+  const toggle = () => {
+    if (!isDesktop && !open) setControlsOpen(false);
+    toggleLeftMenu('fractal');
   };
 
   return (
@@ -33,7 +39,7 @@ export const FractalSelector = memo(function FractalSelector() {
       <div className="hud-glass px-[14px] py-[8px]">
         <button
           type="button"
-          onClick={() => toggleLeftMenu('fractal')}
+          onClick={toggle}
           className="hud-fractal-name hud-interactive flex items-center gap-[6px] w-full min-h-[28px] px-[4px] py-[2px] cursor-pointer text-left text-[12px]"
           aria-expanded={open}
           aria-label="Fractal selection"
@@ -44,7 +50,13 @@ export const FractalSelector = memo(function FractalSelector() {
         </button>
 
         {open && (
-          <div className="mt-[6px] px-[2px] pb-[4px]">
+          <div
+            className="mt-[6px] px-[2px] pb-[4px] overflow-y-auto [&::-webkit-scrollbar]:hidden"
+            style={{
+              scrollbarWidth: 'none',
+              maxHeight: 'calc(100dvh - 160px - var(--hud-safe-top) - var(--hud-safe-bottom))',
+            }}
+          >
             <div className="hud-fractal-list flex flex-col gap-[1px]">
               {menuFractals.map((f) => (
                 <button

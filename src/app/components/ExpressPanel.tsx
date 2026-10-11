@@ -5,6 +5,8 @@ import type { MacroState, RemixMode } from '@/fractals/types';
 import { ZOOM_MAX, ZOOM_MIN } from '@/fractals/types';
 import { useThrottledCamera } from '@/hooks/useThrottledCamera';
 import { useExplorerStore } from '@/state/ExplorerStore';
+import { useHudIntent } from './hud/HudIntentContext';
+import { sidePanelProps } from './hud/sidePanelStyle';
 
 function EvolveCapsule({ speed }: { speed: number }) {
   const period = `${Math.max(0.7, 2.2 - speed * 1.1)}s`;
@@ -116,18 +118,12 @@ function InstrumentBody() {
 
 export const ExpressPanel = memo(function ExpressPanel() {
   const uiMode = useExplorerStore((s) => s.uiMode);
+  const { isDesktop } = useHudIntent();
 
   if (uiMode !== 'express') return null;
 
   return (
-    <div
-      className="hud-glass absolute top-1/2 -translate-y-1/2 w-[160px] md:w-[178px] max-h-[min(78vh,580px)] overflow-y-auto pointer-events-auto px-[14px] py-[12px] [&::-webkit-scrollbar]:hidden"
-      style={{
-        right: 'max(10px, var(--hud-safe-right))',
-        scrollbarWidth: 'none',
-      }}
-      onPointerDown={(e) => e.stopPropagation()}
-    >
+    <div {...sidePanelProps(isDesktop)} onPointerDown={(e) => e.stopPropagation()}>
       <InstrumentBody />
     </div>
   );

@@ -1,12 +1,14 @@
 import { useEffect, useMemo } from 'react';
 import type { UiMode } from '@/fractals/types';
 import { useExplorerStore } from '@/state/ExplorerStore';
+import { useHudIntent } from './hud/HudIntentContext';
 
 export function ModeToggle() {
   const uiMode = useExplorerStore((s) => s.uiMode);
   const controlsOpen = useExplorerStore((s) => s.controlsOpen);
   const toggleControlsMode = useExplorerStore((s) => s.toggleControlsMode);
   const setControlsOpen = useExplorerStore((s) => s.setControlsOpen);
+  const { isDesktop, closeLeftMenu } = useHudIntent();
 
   const modes = useMemo(
     () =>
@@ -44,8 +46,11 @@ export function ModeToggle() {
             <button
               key={m.value}
               type="button"
-              onClick={() => toggleControlsMode(m.value)}
-              className={`hud-mode-btn min-h-[28px] min-w-[40px] px-[8px] py-[4px] text-[11px] md:text-[10px] cursor-pointer ${
+              onClick={() => {
+                if (!isDesktop) closeLeftMenu();
+                toggleControlsMode(m.value);
+              }}
+              className={`hud-mode-btn min-h-[32px] md:min-h-[28px] min-w-[40px] px-[8px] py-[4px] text-[11px] md:text-[10px] cursor-pointer ${
                 isActive ? 'is-active' : ''
               }`}
               aria-pressed={isActive}
