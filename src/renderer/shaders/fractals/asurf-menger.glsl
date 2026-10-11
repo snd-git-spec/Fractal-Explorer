@@ -120,14 +120,15 @@ float sceneSDE(vec3 p) {
   vec2 j = clamp(u_jc, vec2(-1.15), vec2(1.15));
 
   // Clean architectural band — readable caverns + sponge (not foam)
-  float surfSc = mix(1.06, 1.2, tPow);
+  float surfSc = mix(1.18, 1.32, tPow);
   float add = mix(0.96, 1.08, tBail);
   float twist = 1.5707963 + j.y * 0.32;
-  float mengerSc = mix(2.95, 3.2, tBail);
+  float mengerSc = mix(3.0, 3.3, tBail);
   float juliaAmp = mix(0.06, 0.16, 0.5 + j.x * 0.2 + tPow * 0.15);
 
-  // Enough Surf layers, then deep Menger for complexity without noise
-  float handoff = mix(3.5, 6.5, clamp(0.5 + j.x * 0.35, 0.0, 1.0));
+  // Few Surf layers before Menger — each extra Surf pass seals the caverns shut.
+  // Kept near 3.5: a handoff on a whole iteration blends two maps into dense foam.
+  float handoff = mix(3.4, 3.7, clamp(0.5 + j.x * 0.35, 0.0, 1.0));
 
   const float sc = 3.0;
   float k = 0.72;
