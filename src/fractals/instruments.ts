@@ -169,8 +169,9 @@ const INSTRUMENTS: Record<FractalId, FractalInstrument> = {
   4: inst({
     labels: { power: 'Inversion', bailout: 'Sphere Gap', cx: 'Twist X', cy: 'Twist Y' },
     macroWeights: { pulsePower: 0.85, depthZoom: 0.7, driftWarpX: 0.6 },
+    defaultMode: 'Gasket',
     snapshots: [
-      { name: 'Gasket', macros: { pulse: 0.55, depth: 0.75, drift: 0.3, void: 0.55 }, camera: { power: 2.5, cx: -0.4, cy: -0.6, zoom: 3 }, palette: 0 },
+      { name: 'Gasket', macros: { pulse: 0.55, depth: 0.75, drift: 0.3, void: 0.55 }, camera: { power: 2.5, cx: -0.4, cy: -0.6, zoom: 5.7 }, palette: 0 },
       { name: 'Bubble Storm', macros: { pulse: 0.8, depth: 0.5, drift: 0.65, void: 0.3 }, camera: { power: 9, cx: -0.9, cy: 0.9, zoom: 6 }, palette: 1 },
     ],
   }),

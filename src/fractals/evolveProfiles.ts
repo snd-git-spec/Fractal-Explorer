@@ -85,8 +85,8 @@ const SILVER = 0.4142135623;
 /** Pitch clamp — near true poles (±~85°). */
 const POLE_MAX = 1.48;
 
-/** Lens roll rate in rad per path-second (~3 min per full turn at default evolve speed). */
-const LENS_SPIN_RATE = 0.075;
+/** Lens roll rate in rad per path-second (~2 min per full turn). */
+const LENS_SPIN_RATE = 0.114;
 
 /** Latitude amplitude — 1.0 = full pole-to-pole sweep on every fractal. */
 const LAT_AMP = 1.0;
@@ -284,9 +284,9 @@ function pathRollAt(
   fractalId: FractalId,
 ): { roll: number; rollVel: number } {
   const amp = fractalId === 13 ? 1.3 : 1.0;
-  // Continuous one-way lens spin (spinning top) — φ-Cavern's path clock runs at 0.55×, so compensate
+  // Continuous one-way lens spin — divide out the per-fractal path slowdown so every lens turns alike
   const spinDir = seeds.elPhase > Math.PI ? 1 : -1;
-  const spinRate = spinDir * LENS_SPIN_RATE * (fractalId === 16 ? 1 / 0.55 : 1);
+  const spinRate = (spinDir * LENS_SPIN_RATE) / cameraPathMul(fractalId);
   const wR = yawRate * 0.58 * (0.88 + 0.22 * seeds.elRateScale);
   const wR2 = wR * GOLDEN * 1.35;
   const wR3 = wR * SILVER * 2.2;
@@ -755,11 +755,21 @@ function morphColor(
 /** Wall-clock path speed — independent of Evolve on/off and Evolve Speed. */
 const CAMERA_PATH_RATE = 0.46;
 
+/**
+ * Per-fractal tour slowdown where surfaces always sit right at the lens, so the same
+ * camera travel reads as rushing past (space-filling packings).
+ */
+function cameraPathMul(fractalId: FractalId): number {
+  if (fractalId === 4) return 0.3; // Apollonian — infinite sphere packing fills all space
+  if (fractalId === 16) return 0.55; // φ-Cavern — close caverns
+  return 1;
+}
+
 /** Camera tour — runs every frame whether or not the fractal shape is evolving. */
 export function updateCameraPath(ctx: CameraPathContext): number {
   const { tgt, baseline, orbit, dt, fractalId } = ctx;
   const pace = orbitPace(fractalId, baseline.zoom);
-  const pathDt = dt * CAMERA_PATH_RATE * (fractalId === 16 ? 0.55 : 1);
+  const pathDt = dt * CAMERA_PATH_RATE * cameraPathMul(fractalId);
   const zoomDt = pathDt * pace;
   const orbitP = ctx.orbitPhase + pathDt;
 
