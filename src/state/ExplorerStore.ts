@@ -263,40 +263,18 @@ export const useExplorerStore = create<ExplorerStore>((set, get) => ({
   setAutoEvolve: (v) => {
     const runtime = get().runtime;
     if (v) {
+      // Evolve resumes from the current shape; the camera tour is untouched
       const cur = runtime.cur;
-      const zoom = cur.zoom;
-      syncOrbitOffsetsFromPose(runtime.orbit, {
-        rotX: cur.rotX,
-        rotY: cur.rotY,
-        rotZ: cur.rotZ ?? 0,
-      }, get().fractalId, runtime.orbitPhase);
-      const baseline = { ...get().macroBaseline };
-      Object.assign(baseline, {
-        rotX: 0,
-        rotY: 0,
-        rotZ: 0,
-        zoom,
-        panX: 0,
-        panY: 0,
+      const shape = {
         power: cur.power,
         bailout: cur.bailout,
         cx: cur.cx,
         cy: cur.cy,
         glow: cur.glow,
         bright: cur.bright,
-      });
-      // Keep exact release pose — do not rewrite cur from orbit (identity anyway)
-      cur.panX = 0;
-      cur.panY = 0;
-      Object.assign(runtime.tgt, cur);
-      Object.assign(get().viewAnchor, {
-        rotX: 0,
-        rotY: 0,
-        zoom,
-        panX: 0,
-        panY: 0,
-      });
-      set({ macroBaseline: baseline, autoEvolve: v });
+      };
+      Object.assign(runtime.tgt, shape);
+      set({ macroBaseline: { ...get().macroBaseline, ...shape }, autoEvolve: v });
     } else {
       set({ atmosphere: { ...get().atmosphereBaseline }, autoEvolve: v });
     }

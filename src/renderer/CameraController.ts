@@ -1,13 +1,15 @@
 import type { ExplorerRuntimeState } from '@/fractals/types';
 import { ZOOM_MAX, ZOOM_MIN } from '@/fractals/types';
 
-/** Touch: precision first — previous gains spun too fast on phones. */
-const TOUCH_BASE_YAW = 0.85;
-const TOUCH_BASE_PITCH = 0.5;
-/** Mouse: moderate gain — previous 2.4 rad per full-screen drag felt rushed. */
-const MOUSE_BASE_YAW = 1.65;
-const MOUSE_BASE_PITCH = 0.88;
+/**
+ * Radians per short-screen-side of drag. One gain for both axes so the drag can be
+ * rotated into the rolled lens frame without skewing direction.
+ */
+const TOUCH_GAIN = 0.75;
+const MOUSE_GAIN = 0.95;
 const VEL_SMOOTH = 0.28;
+/** A release this long after the last move is a hold, not a flick. */
+const FLICK_WINDOW_MS = 90;
 /** Suppress synthetic mouse events that follow touch on mobile. */
 const MOUSE_SUPPRESS_MS = 900;
 
@@ -38,6 +40,7 @@ export class CameraController {
   }
 
   getGestureVelocity(): { yaw: number; pitch: number } {
+    if (performance.now() - this.lastMoveTime > FLICK_WINDOW_MS) return { yaw: 0, pitch: 0 };
     return { yaw: this.velYaw, pitch: this.velPitch };
   }
 
@@ -86,13 +89,11 @@ export class CameraController {
     if (this.isDragging) this.endGesture();
   };
 
-  /** Write rotation to both cur and tgt so Auto Evolve lerp cannot lag the gesture. */
+  /** Gesture moves the target; the renderer eases cur onto it so sparse input stays smooth. */
   private applyRot(dYaw: number, dPitch: number): void {
-    const runtime = this.getState();
-    for (const s of [runtime.tgt, runtime.cur]) {
-      s.rotY += dYaw;
-      s.rotX = Math.max(-1.48, Math.min(1.48, s.rotX + dPitch));
-    }
+    const tgt = this.getState().tgt;
+    tgt.rotY += dYaw;
+    tgt.rotX = Math.max(-1.48, Math.min(1.48, tgt.rotX + dPitch));
   }
 
   private applyPan(dPanX: number, dPanY: number): void {
@@ -111,15 +112,17 @@ export class CameraController {
     if (commit) this.onZoomCommit?.(z);
   }
 
-  private orbitFromDelta(
-    dx: number,
-    dy: number,
-    dt: number,
-    baseYaw: number,
-    basePitch: number,
-  ): void {
-    const dYaw = dx * baseYaw;
-    const dPitch = -dy * basePitch;
+  /** dx right / dy down in screen pixels. */
+  private orbitFromDelta(dx: number, dy: number, dt: number, gain: number): void {
+    // The lens is rolled by rotZ — undo it so the scene follows the finger on screen
+    const roll = this.getState().cur.rotZ ?? 0;
+    const c = Math.cos(roll);
+    const s = Math.sin(roll);
+    const k = gain / Math.max(1, Math.min(window.innerWidth, window.innerHeight));
+    const ux = (dx * c + dy * s) * k;
+    const uy = (-dx * s + dy * c) * k;
+    const dYaw = ux;
+    const dPitch = -uy;
     this.applyRot(dYaw, dPitch);
 
     const instantYaw = dYaw / Math.max(dt, 1e-3);
@@ -156,15 +159,15 @@ export class CameraController {
     if (!this.isDragging || this.inputKind !== 'mouse') return;
     const now = performance.now();
     const dt = Math.max((now - this.lastMoveTime) / 1000, 1e-3);
-    const dx = (e.clientX - this.lastMX) / window.innerWidth;
-    const dy = (e.clientY - this.lastMY) / window.innerHeight;
+    const dx = e.clientX - this.lastMX;
+    const dy = e.clientY - this.lastMY;
     if (this.isShift) {
       const zoom = this.getState().tgt.zoom;
-      this.applyPan(dx * zoom, -dy * zoom);
+      this.applyPan((dx / window.innerWidth) * zoom, (-dy / window.innerHeight) * zoom);
       this.velYaw = 0;
       this.velPitch = 0;
     } else {
-      this.orbitFromDelta(dx, dy, dt, MOUSE_BASE_YAW, MOUSE_BASE_PITCH);
+      this.orbitFromDelta(dx, dy, dt, MOUSE_GAIN);
     }
     this.lastMX = e.clientX;
     this.lastMY = e.clientY;
@@ -243,9 +246,9 @@ export class CameraController {
     } else if (e.touches.length === 1) {
       const now = performance.now();
       const dt = Math.max((now - this.lastMoveTime) / 1000, 1e-3);
-      const dx = (e.touches[0].clientX - this.lastMX) / window.innerWidth;
-      const dy = (e.touches[0].clientY - this.lastMY) / window.innerHeight;
-      this.orbitFromDelta(dx, dy, dt, TOUCH_BASE_YAW, TOUCH_BASE_PITCH);
+      const dx = e.touches[0].clientX - this.lastMX;
+      const dy = e.touches[0].clientY - this.lastMY;
+      this.orbitFromDelta(dx, dy, dt, TOUCH_GAIN);
       this.lastMX = e.touches[0].clientX;
       this.lastMY = e.touches[0].clientY;
       this.lastMoveTime = now;

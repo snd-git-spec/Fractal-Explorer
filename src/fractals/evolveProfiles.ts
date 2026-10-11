@@ -12,10 +12,8 @@ export interface EvolveContext {
   tgt: CameraState;
   baseline: CameraState;
   atmosphereBaseline: AtmosphereState;
-  orbit: CameraOrbit;
   evolvePhase: number;
   morphPhase: number;
-  orbitPhase: number;
   dt: number;
   evolveSpeed: number;
   paletteIdx: PaletteIdx;
@@ -25,10 +23,20 @@ export interface EvolveContext {
   holdView?: boolean;
 }
 
+export interface CameraPathContext {
+  tgt: CameraState;
+  baseline: CameraState;
+  orbit: CameraOrbit;
+  orbitPhase: number;
+  dt: number;
+  fractalId: FractalId;
+  /** User is dragging — path clock runs but offsets follow the hand. */
+  holdView?: boolean;
+}
+
 export interface EvolveResult {
   phase: number;
   morphPhase: number;
-  orbitPhase: number;
   atmosphere: AtmosphereState;
   paletteIdx: PaletteIdx;
   iters: number;
@@ -77,8 +85,8 @@ const SILVER = 0.4142135623;
 /** Pitch clamp — near true poles (±~85°). */
 const POLE_MAX = 1.48;
 
-/** Lens roll rate in rad per path-second (~90 s per full turn at default evolve speed). */
-const LENS_SPIN_RATE = 0.18;
+/** Lens roll rate in rad per path-second (~3 min per full turn at default evolve speed). */
+const LENS_SPIN_RATE = 0.075;
 
 /** Latitude amplitude — 1.0 = full pole-to-pole sweep on every fractal. */
 const LAT_AMP = 1.0;
@@ -131,6 +139,9 @@ const EVOLVE_CYCLE: EvolveBehavior[] = [
   { intensity: 0.95, paramAmp: 1.0, colorAmp: 1.6, detailSwing: 4.5 },
   { intensity: 0.8, paramAmp: 0.85, colorAmp: 1.35, detailSwing: 3.5 },
 ];
+
+/** Fixed cruise for the camera tour so evolve phases never change its speed. */
+const CAMERA_BEHAVIOR = EVOLVE_CYCLE[2];
 
 const CYCLE_SEGMENT = 16;
 
@@ -302,8 +313,7 @@ export function syncOrbitOffsetsFromPose(
   fractalId: FractalId,
   pathTime: number,
 ): void {
-  const beh = EVOLVE_CYCLE[2];
-  const { spin: yawRate } = sphereRates(orbit.seeds, beh, fractalId, pathTime);
+  const { spin: yawRate } = sphereRates(orbit.seeds, CAMERA_BEHAVIOR, fractalId, pathTime);
   const path = spherePathAt(pathTime, orbit.seeds, orbit.azimuth, yawRate);
   const { roll } = pathRollAt(pathTime, yawRate, orbit.seeds, fractalId);
   orbit.lonOffset = pose.rotY - path.lon;
@@ -742,21 +752,15 @@ function morphColor(
   tgt.bright = clamp(baseline.bright + brightWave, 0.6, 3.2);
 }
 
-export function updateEvolveTargets(ctx: EvolveContext): EvolveResult {
-  const { tgt, baseline, atmosphereBaseline, orbit, dt, evolveSpeed: spd, fractalId } = ctx;
-  const morph = getEvolveMorph(fractalId);
-  // Evolve Speed = fractal morph / colour / atmosphere only — camera is independent
-  const morphScale = spd / 0.3;
-  const p      = ctx.evolvePhase + dt * spd * PHASE_RATE;
-  const morphP = ctx.morphPhase  + dt * morph.morphRate * morphScale;
-  const beh = resolveEvolveBehavior(p);
+/** Wall-clock path speed — independent of Evolve on/off and Evolve Speed. */
+const CAMERA_PATH_RATE = 0.46;
 
-  // Path clock = wall time (global tour). Pace only calms zoom breathe on dense fractals.
+/** Camera tour — runs every frame whether or not the fractal shape is evolving. */
+export function updateCameraPath(ctx: CameraPathContext): number {
+  const { tgt, baseline, orbit, dt, fractalId } = ctx;
   const pace = orbitPace(fractalId, baseline.zoom);
-  const orbitSpd = 0.28 + 0.42 * clamp(spd / 0.3, 0.5, 1.0);
-  const pathDt = dt * orbitSpd * (fractalId === 16 ? 0.55 : 1);
+  const pathDt = dt * CAMERA_PATH_RATE * (fractalId === 16 ? 0.55 : 1);
   const zoomDt = pathDt * pace;
-
   const orbitP = ctx.orbitPhase + pathDt;
 
   advanceFreeSphereOrbit(
@@ -764,7 +768,7 @@ export function updateEvolveTargets(ctx: EvolveContext): EvolveResult {
     pathDt,
     ctx.holdView ? 0 : zoomDt,
     orbitP,
-    beh,
+    CAMERA_BEHAVIOR,
     fractalId,
     baseline.zoom,
   );
@@ -791,6 +795,18 @@ export function updateEvolveTargets(ctx: EvolveContext): EvolveResult {
     tgt.panY = 0;
   }
 
+  return orbitP;
+}
+
+/** Fractal shape / colour / atmosphere evolution only — never touches the camera. */
+export function updateEvolveTargets(ctx: EvolveContext): EvolveResult {
+  const { tgt, baseline, atmosphereBaseline, dt, evolveSpeed: spd, fractalId } = ctx;
+  const morph = getEvolveMorph(fractalId);
+  const morphScale = spd / 0.3;
+  const p      = ctx.evolvePhase + dt * spd * PHASE_RATE;
+  const morphP = ctx.morphPhase  + dt * morph.morphRate * morphScale;
+  const beh = resolveEvolveBehavior(p);
+
   if (!ctx.holdView) {
     morphFractalShape(tgt, baseline, morphP, beh, fractalId);
     morphColor(tgt, baseline, p, morphP, beh, fractalId);
@@ -799,7 +815,6 @@ export function updateEvolveTargets(ctx: EvolveContext): EvolveResult {
   return {
     phase: p,
     morphPhase: morphP,
-    orbitPhase: orbitP,
     atmosphere: evolveAtmosphere(atmosphereBaseline, p, beh, fractalId),
     paletteIdx: evolvePalette(ctx.paletteIdx, p, beh),
     iters: ctx.holdView

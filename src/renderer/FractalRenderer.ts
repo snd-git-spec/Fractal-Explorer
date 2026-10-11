@@ -7,7 +7,7 @@ import {
   ZOOM_MIN,
 } from '@/fractals/types';
 import { applyMacrosToTarget } from '@/fractals/macroMapper';
-import { updateEvolveTargets, syncOrbitOffsetsFromPose } from '@/fractals/evolveProfiles';
+import { updateCameraPath, updateEvolveTargets, syncOrbitOffsetsFromPose } from '@/fractals/evolveProfiles';
 import { AdaptiveQuality } from './AdaptiveQuality';
 import { CameraController } from './CameraController';
 import { FpsCounter, lerpCameraState } from './RenderLoop';
@@ -21,6 +21,10 @@ import {
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
+
+/** Flick carry after release — rad/s cap and decay time. */
+const FLICK_MAX = 2.5;
+const FLICK_TAU = 0.45;
 
 export class FractalRenderer {
   private gl: WebGLRenderingContext | null = null;
@@ -43,6 +47,9 @@ export class FractalRenderer {
   private prevAutoEvolve = false;
   /** Monotonic content clock (seconds). */
   private simTime = 0;
+  /** Post-release flick (rad/s) added to the tour offsets, decaying to zero. */
+  private flickYaw = 0;
+  private flickPitch = 0;
 
   /** Time constant for atmosphere / palette lerp (seconds). */
   private static readonly ATM_TAU = 2.0;
@@ -81,24 +88,29 @@ export class FractalRenderer {
       this.canvas,
       () => this.store.getState().runtime,
       undefined,
-      // Gesture end: continue from this exact pose + flick velocity (no path jump).
+      // Gesture end: tour resumes from where the drag was heading, carrying the flick.
       () => {
         const state = this.store.getState();
         const { cur, tgt, orbit } = state.runtime;
         const zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, cur.zoom));
         syncOrbitOffsetsFromPose(
           orbit,
-          { rotX: cur.rotX, rotY: cur.rotY, rotZ: cur.rotZ ?? 0 },
+          { rotX: tgt.rotX, rotY: tgt.rotY, rotZ: cur.rotZ ?? 0 },
           state.fractalId,
           state.runtime.orbitPhase,
         );
+        const flick = this.camera?.getGestureVelocity() ?? { yaw: 0, pitch: 0 };
+        this.flickYaw = Math.max(-FLICK_MAX, Math.min(FLICK_MAX, flick.yaw));
+        this.flickPitch = Math.max(-FLICK_MAX, Math.min(FLICK_MAX, flick.pitch));
+        // Baseline excludes the tour's zoom breathe, which is added back every frame
+        const baseZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, zoom - orbit.zoom));
         const baseline = state.getMacroBaseline();
         baseline.rotX = 0;
         baseline.rotY = 0;
         baseline.rotZ = 0;
-        baseline.zoom = zoom;
+        baseline.zoom = baseZoom;
         const anchor = state.viewAnchor;
-        anchor.zoom = zoom;
+        anchor.zoom = baseZoom;
         anchor.panX = 0;
         anchor.panY = 0;
         cur.panX = 0;
@@ -208,6 +220,34 @@ export class FractalRenderer {
     let renderPalette = state.paletteIdx;
     let renderIters = state.iters;
 
+    if (this.camera?.isGesturing()) {
+      this.flickYaw = 0;
+      this.flickPitch = 0;
+    } else if (evolveDt > 0 && (this.flickYaw !== 0 || this.flickPitch !== 0)) {
+      const orbit = state.runtime.orbit;
+      orbit.lonOffset += this.flickYaw * _displayDt;
+      orbit.latOffset += this.flickPitch * _displayDt;
+      const decay = Math.exp(-_displayDt / FLICK_TAU);
+      this.flickYaw *= decay;
+      this.flickPitch *= decay;
+      if (Math.abs(this.flickYaw) + Math.abs(this.flickPitch) < 1e-3) {
+        this.flickYaw = 0;
+        this.flickPitch = 0;
+      }
+    }
+
+    if (evolveDt > 0) {
+      state.runtime.orbitPhase = updateCameraPath({
+        tgt: state.runtime.tgt,
+        baseline: state.getMacroBaseline(),
+        orbit: state.runtime.orbit,
+        orbitPhase: state.runtime.orbitPhase,
+        dt: evolveDt,
+        fractalId,
+        holdView: !!this.camera?.isGesturing(),
+      });
+    }
+
     if (evolveDt > 0 && state.autoEvolve) {
       const gesturing = !!this.camera?.isGesturing();
 
@@ -215,10 +255,8 @@ export class FractalRenderer {
         tgt: state.runtime.tgt,
         baseline: state.getMacroBaseline(),
         atmosphereBaseline: state.getAtmosphereBaseline(),
-        orbit: state.runtime.orbit,
         evolvePhase: state.runtime.evolvePhase,
         morphPhase: state.runtime.morphPhase,
-        orbitPhase: state.runtime.orbitPhase,
         dt: evolveDt,
         evolveSpeed: state.evolveSpeed,
         paletteIdx: state.paletteIdx,
@@ -228,7 +266,6 @@ export class FractalRenderer {
       });
       state.runtime.evolvePhase = evolved.phase;
       state.runtime.morphPhase = evolved.morphPhase;
-      state.runtime.orbitPhase = evolved.orbitPhase;
 
       renderAtmosphere = evolved.atmosphere;
       renderPalette = evolved.paletteIdx;
@@ -260,7 +297,7 @@ export class FractalRenderer {
       const gesturing = !!this.camera?.isGesturing();
       lerpCameraState(
         state.runtime,
-        evolveDt,
+        gesturing ? _displayDt : evolveDt,
         state.snapshotLerpBoost,
         state.autoEvolve,
         gesturing,
