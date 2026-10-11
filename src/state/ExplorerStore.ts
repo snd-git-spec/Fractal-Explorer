@@ -48,6 +48,8 @@ export interface ExplorerStore {
   viewAnchor: ViewAnchor;
   lockViewOnRemix: boolean;
   snapshotLerpBoost: boolean;
+  /** Name of the last applied snapshot mode for this fractal; null = free / default. */
+  activeMode: string | null;
   isRecording: boolean;
   /** uiVisible value to restore after recording stops */
   uiVisibleBeforeRecord: boolean;
@@ -85,6 +87,27 @@ export interface ExplorerStore {
   getRuntime: () => ExplorerRuntimeState;
   getMacroBaseline: () => CameraState;
   getAtmosphereBaseline: () => AtmosphereState;
+}
+
+const MODE_SHAPE_KEYS = ['power', 'bailout', 'cx', 'cy'] as const;
+
+/** Re-apply the active mode's shape + atmosphere on top of a macro-derived baseline. */
+function applyActiveMode(
+  get: () => ExplorerStore,
+  shape: CameraState,
+  atmosphere?: AtmosphereState,
+): void {
+  const name = get().activeMode;
+  if (!name) return;
+  const snap = getSnapshots(get().fractalId).find((s) => s.name === name);
+  if (!snap) return;
+  if (snap.camera) {
+    for (const k of MODE_SHAPE_KEYS) {
+      const v = snap.camera[k];
+      if (v !== undefined) shape[k] = v;
+    }
+  }
+  if (atmosphere && snap.atmosphere) Object.assign(atmosphere, snap.atmosphere);
 }
 
 function applySnapshotToState(
@@ -155,6 +178,7 @@ export const useExplorerStore = create<ExplorerStore>((set, get) => ({
   viewAnchor: { ...DEFAULT_VIEW_ANCHOR },
   lockViewOnRemix: true,
   snapshotLerpBoost: false,
+  activeMode: null,
   isRecording: false,
   uiVisibleBeforeRecord: true,
   runtime: createRuntimeState(),
@@ -225,6 +249,7 @@ export const useExplorerStore = create<ExplorerStore>((set, get) => ({
       viewAnchor: anchor,
       macroBaseline: { ...prevBaseline },
       iters: result.iters,
+      activeMode: null,
     });
   },
 
@@ -301,6 +326,7 @@ export const useExplorerStore = create<ExplorerStore>((set, get) => ({
     const macros = { ...get().macros, [key]: value };
     const view = get().viewAnchor;
     const { baseline, atmosphere, iters } = buildMacroBaseline(macros, get().fractalId, view);
+    applyActiveMode(get, baseline, atmosphere);
 
     if (get().autoEvolve) {
       set({ macros, macroBaseline: baseline, iters });
@@ -319,6 +345,7 @@ export const useExplorerStore = create<ExplorerStore>((set, get) => ({
       Object.assign(get().runtime.cur, snap);
     } else {
       const result = applyMacrosToTarget(macros, get().fractalId, get().runtime.tgt, true);
+      applyActiveMode(get, get().runtime.tgt, result.atmosphere);
       set({
         macros,
         atmosphere: result.atmosphere,
@@ -331,6 +358,7 @@ export const useExplorerStore = create<ExplorerStore>((set, get) => ({
   setMacros: (macros) => {
     const view = get().viewAnchor;
     const { baseline, atmosphere, iters } = buildMacroBaseline(macros, get().fractalId, view);
+    applyActiveMode(get, baseline, atmosphere);
 
     if (get().autoEvolve) {
       set({ macros, macroBaseline: baseline, iters });
@@ -347,6 +375,7 @@ export const useExplorerStore = create<ExplorerStore>((set, get) => ({
       Object.assign(get().runtime.cur, snap);
     } else {
       const result = applyMacrosToTarget(macros, get().fractalId, get().runtime.tgt, true);
+      applyActiveMode(get, get().runtime.tgt, result.atmosphere);
       set({
         macros,
         atmosphere: result.atmosphere,
@@ -362,6 +391,7 @@ export const useExplorerStore = create<ExplorerStore>((set, get) => ({
       get().fractalId,
       get().viewAnchor,
     );
+    applyActiveMode(get, baseline, atmosphere);
     Object.assign(get().macroBaseline, baseline);
     Object.assign(get().atmosphereBaseline, atmosphere);
     if (!get().autoEvolve) {
@@ -422,10 +452,15 @@ export const useExplorerStore = create<ExplorerStore>((set, get) => ({
   applySnapshot: (name) => {
     const snapshots = getSnapshots(get().fractalId);
     const snapshot = snapshots.find((s) => s.name === name);
-    if (snapshot) applySnapshotToState(snapshot, get, set);
+    if (!snapshot) return;
+    applySnapshotToState(snapshot, get, set);
+    set({ activeMode: snapshot.name });
   },
 
-  remix: (mode) => remixState(get, set, mode),
+  remix: (mode) => {
+    remixState(get, set, mode);
+    set({ activeMode: null });
+  },
 
   toggleLockView: () => set((s) => ({ lockViewOnRemix: !s.lockViewOnRemix })),
 
@@ -491,6 +526,7 @@ export const useExplorerStore = create<ExplorerStore>((set, get) => ({
       evolveSpeed: decoded.evolveSpeed ?? get().evolveSpeed,
       macroBaseline: { ...runtime.tgt },
       snapshotLerpBoost: true,
+      activeMode: null,
     });
     return true;
   },

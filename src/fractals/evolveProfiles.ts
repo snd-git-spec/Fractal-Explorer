@@ -77,6 +77,9 @@ const SILVER = 0.4142135623;
 /** Pitch clamp — near true poles (±~85°). */
 const POLE_MAX = 1.48;
 
+/** Lens roll rate in rad per path-second (~90 s per full turn at default evolve speed). */
+const LENS_SPIN_RATE = 0.18;
+
 /** Latitude amplitude — 1.0 = full pole-to-pole sweep on every fractal. */
 const LAT_AMP = 1.0;
 
@@ -269,19 +272,22 @@ function pathRollAt(
   seeds: CameraOrbit['seeds'],
   fractalId: FractalId,
 ): { roll: number; rollVel: number } {
-  const amp = fractalId === 13 ? 1.3 : fractalId === 16 ? 0.55 : 1.0;
+  const amp = fractalId === 13 ? 1.3 : 1.0;
+  // Continuous one-way lens spin (spinning top) — φ-Cavern's path clock runs at 0.55×, so compensate
+  const spinDir = seeds.elPhase > Math.PI ? 1 : -1;
+  const spinRate = spinDir * LENS_SPIN_RATE * (fractalId === 16 ? 1 / 0.55 : 1);
   const wR = yawRate * 0.58 * (0.88 + 0.22 * seeds.elRateScale);
   const wR2 = wR * GOLDEN * 1.35;
   const wR3 = wR * SILVER * 2.2;
   const a1 = wR * pathTime + seeds.elPhase;
   const a2 = wR2 * pathTime + seeds.azOffset * 0.6;
   const a3 = wR3 * pathTime + seeds.elPhase * 0.45 + 1.1;
-  const roll = amp * (
+  const roll = spinRate * pathTime + amp * (
     0.32 * Math.sin(a1) +
     0.2 * Math.sin(a2) +
     0.14 * Math.sin(a3)
   );
-  const rollVel = amp * (
+  const rollVel = spinRate + amp * (
     0.32 * wR * Math.cos(a1) +
     0.2 * wR2 * Math.cos(a2) +
     0.14 * wR3 * Math.cos(a3)
@@ -432,134 +438,136 @@ function morphFractalShape(
   const morph = getEvolveMorph(fractalId);
   const a = beh.paramAmp;
 
-  // In-band morphs: stay inside the live param band so form keeps moving
-  // (generic high mul + clamps = rush to extreme, then stall).
-  if (fractalId === 0 || fractalId === 5) {
-    if (fractalId === 0) {
-      // Absolute band crawl — always moving through lobe powers (no baseline linger).
-      // Incommensurate rates so the sum rarely flatlines.
-      const amp = 0.75 + 0.25 * a;
-      const ph = morphP * 1.05;
-      tgt.power = clamp(
-        8.0 +
-          Math.sin(ph) * 3.4 * amp +
-          Math.sin(ph * 0.618 + 1.2) * 1.6 * amp +
-          Math.sin(ph * 1.41 + 2.4) * 0.9 * amp,
-        5.0,
-        12.0,
-      );
-      tgt.bailout = clamp(
-        2.4 +
-          Math.sin(ph * 0.73 + 0.5) * 0.95 * amp +
-          Math.cos(ph * 1.12 + 1.8) * 0.55 * amp,
-        1.5,
-        4.4,
-      );
-      // Stretch / spin keep changing even when power briefly slows
-      tgt.cx = clamp(
-        Math.sin(ph * 0.55 + 0.3) * 0.72 * amp +
-          Math.cos(ph * 0.91 + 1.7) * 0.4 * amp,
-        -0.92,
-        0.92,
-      );
-      tgt.cy = clamp(
-        Math.sin(ph * 0.48 + 2.1) * 0.7 * amp +
-          Math.sin(ph * 1.05 + 0.6) * 0.38 * amp,
-        -0.92,
-        0.92,
-      );
-      return;
-    }
+  // In-band morphs centred on the baseline (= active mode), so modes stay distinct while moving.
+  // Clamps are each shader's safe band; swings are sized to keep a mode recognisable.
+  const base = (v: number, fallback: number) => (Number.isFinite(v) ? v : fallback);
 
-    // Dodeca: absolute crawl inside lace band (was near-static vs baseline linger).
-    // Power ↔ Scale (~1.88–2.22), bailout ↔ Size, cx/cy ↔ Stretch/Spin.
-    const amp = 0.72 + 0.28 * a;
-    const ph = morphP * 0.95;
+  if (fractalId === 0) {
+    const amp = 0.75 + 0.25 * a;
+    const ph = morphP * 1.05;
     tgt.power = clamp(
-      8.5 +
-        Math.sin(ph) * 1.55 * amp +
-        Math.sin(ph * 0.618 + 1.15) * 0.85 * amp +
-        Math.sin(ph * 1.27 + 2.3) * 0.45 * amp,
-      7.0,
-      11.0,
+      base(baseline.power, 8) +
+        Math.sin(ph) * 1.7 * amp +
+        Math.sin(ph * 0.618 + 1.2) * 0.8 * amp +
+        Math.sin(ph * 1.41 + 2.4) * 0.45 * amp,
+      2.5,
+      14,
     );
     tgt.bailout = clamp(
-      2.75 +
-        Math.sin(ph * 0.73 + 0.45) * 0.7 * amp +
-        Math.cos(ph * 1.05 + 1.7) * 0.4 * amp,
-      2.0,
-      3.8,
+      base(baseline.bailout, 2.4) +
+        Math.sin(ph * 0.73 + 0.5) * 0.5 * amp +
+        Math.cos(ph * 1.12 + 1.8) * 0.3 * amp,
+      1.2,
+      5,
     );
     tgt.cx = clamp(
-      Math.sin(ph * 0.55 + 0.25) * 0.42 * amp +
-        Math.cos(ph * 0.91 + 1.55) * 0.24 * amp,
-      -0.58,
-      0.58,
+      base(baseline.cx, 0) +
+        Math.sin(ph * 0.55 + 0.3) * 0.36 * amp +
+        Math.cos(ph * 0.91 + 1.7) * 0.2 * amp,
+      -1.1,
+      1.1,
     );
     tgt.cy = clamp(
-      Math.sin(ph * 0.48 + 2.0) * 0.4 * amp +
-        Math.sin(ph * 1.02 + 0.55) * 0.22 * amp,
-      -0.58,
-      0.58,
+      base(baseline.cy, 0) +
+        Math.sin(ph * 0.48 + 2.1) * 0.35 * amp +
+        Math.sin(ph * 1.05 + 0.6) * 0.19 * amp,
+      -1.1,
+      1.1,
     );
     return;
   }
 
-  // Pseudo-Kleinian: crawl a safe cathedral band (never foam extremes)
+  // Dodeca: Power ↔ Scale (~1.88–2.22), bailout ↔ Size, cx/cy ↔ Stretch/Spin.
+  if (fractalId === 5) {
+    const amp = 0.72 + 0.28 * a;
+    const ph = morphP * 0.95;
+    tgt.power = clamp(
+      base(baseline.power, 8.5) +
+        Math.sin(ph) * 0.95 * amp +
+        Math.sin(ph * 0.618 + 1.15) * 0.5 * amp +
+        Math.sin(ph * 1.27 + 2.3) * 0.27 * amp,
+      4,
+      14,
+    );
+    tgt.bailout = clamp(
+      base(baseline.bailout, 2.75) +
+        Math.sin(ph * 0.73 + 0.45) * 0.42 * amp +
+        Math.cos(ph * 1.05 + 1.7) * 0.24 * amp,
+      1.5,
+      5,
+    );
+    tgt.cx = clamp(
+      base(baseline.cx, 0) +
+        Math.sin(ph * 0.55 + 0.25) * 0.25 * amp +
+        Math.cos(ph * 0.91 + 1.55) * 0.14 * amp,
+      -1.1,
+      1.1,
+    );
+    tgt.cy = clamp(
+      base(baseline.cy, 0) +
+        Math.sin(ph * 0.48 + 2.0) * 0.24 * amp +
+        Math.sin(ph * 1.02 + 0.55) * 0.13 * amp,
+      -1.1,
+      1.1,
+    );
+    return;
+  }
+
+  // Pseudo-Kleinian: shader maps the full dial range into its safe architectural band
   if (fractalId === 7) {
     const amp = 0.55 + 0.25 * a;
     const ph = morphP * 0.85;
     tgt.power = clamp(
-      6.5 + Math.sin(ph) * 1.8 * amp + Math.sin(ph * 0.55 + 1.1) * 0.9 * amp,
-      4.5,
-      9.5,
+      base(baseline.power, 6.5) + Math.sin(ph) * 1.1 * amp + Math.sin(ph * 0.55 + 1.1) * 0.55 * amp,
+      2.5,
+      14.5,
     );
     tgt.bailout = clamp(
-      2.3 + Math.sin(ph * 0.7 + 0.4) * 0.7 * amp + Math.cos(ph * 1.05 + 1.5) * 0.4 * amp,
-      1.6,
-      3.4,
+      base(baseline.bailout, 2.3) + Math.sin(ph * 0.7 + 0.4) * 0.42 * amp + Math.cos(ph * 1.05 + 1.5) * 0.24 * amp,
+      1,
+      6,
     );
     tgt.cx = clamp(
-      Math.sin(ph * 0.42 + 0.2) * 0.45 * amp + Math.cos(ph * 0.8 + 1.3) * 0.22 * amp,
-      -0.65,
-      0.65,
+      base(baseline.cx, 0) + Math.sin(ph * 0.42 + 0.2) * 0.27 * amp + Math.cos(ph * 0.8 + 1.3) * 0.13 * amp,
+      -0.85,
+      0.85,
     );
     tgt.cy = clamp(
-      Math.sin(ph * 0.38 + 1.7) * 0.42 * amp + Math.sin(ph * 0.9 + 0.5) * 0.2 * amp,
-      -0.65,
-      0.65,
+      base(baseline.cy, 0) + Math.sin(ph * 0.38 + 1.7) * 0.25 * amp + Math.sin(ph * 0.9 + 0.5) * 0.12 * amp,
+      -0.85,
+      0.85,
     );
     return;
   }
 
-  // Kleinian: crawl the sparse grand band (vast voids, monumental ribs)
+  // Kleinian: sparse grand band (vast voids, monumental ribs)
   if (fractalId === 12) {
     const amp = 0.55 + 0.25 * a;
     const ph = morphP * 0.75;
     tgt.power = clamp(
-      8.5 +
-        Math.sin(ph) * 1.8 * amp +
-        Math.sin(ph * 0.618 + 1.0) * 0.9 * amp +
-        Math.sin(ph * 1.15 + 2.0) * 0.45 * amp,
-      5.5,
-      12.5,
+      base(baseline.power, 8.5) +
+        Math.sin(ph) * 1.1 * amp +
+        Math.sin(ph * 0.618 + 1.0) * 0.55 * amp +
+        Math.sin(ph * 1.15 + 2.0) * 0.27 * amp,
+      2.5,
+      14.5,
     );
     tgt.bailout = clamp(
-      2.8 +
-        Math.sin(ph * 0.65 + 0.4) * 0.65 * amp +
-        Math.cos(ph * 0.95 + 1.35) * 0.35 * amp,
-      1.8,
-      4.2,
+      base(baseline.bailout, 2.8) +
+        Math.sin(ph * 0.65 + 0.4) * 0.4 * amp +
+        Math.cos(ph * 0.95 + 1.35) * 0.21 * amp,
+      1,
+      6,
     );
     tgt.cx = clamp(
-      Math.sin(ph * 0.4 + 0.2) * 0.38 * amp + Math.cos(ph * 0.78 + 1.3) * 0.2 * amp,
-      -0.7,
-      0.7,
+      base(baseline.cx, 0) + Math.sin(ph * 0.4 + 0.2) * 0.23 * amp + Math.cos(ph * 0.78 + 1.3) * 0.12 * amp,
+      -0.9,
+      0.9,
     );
     tgt.cy = clamp(
-      Math.sin(ph * 0.36 + 1.7) * 0.35 * amp + Math.sin(ph * 0.9 + 0.5) * 0.18 * amp,
-      -0.7,
-      0.7,
+      base(baseline.cy, 0) + Math.sin(ph * 0.36 + 1.7) * 0.21 * amp + Math.sin(ph * 0.9 + 0.5) * 0.11 * amp,
+      -0.9,
+      0.9,
     );
     return;
   }

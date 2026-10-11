@@ -2,7 +2,7 @@ import { memo, useMemo } from 'react';
 import { FRACTALS, getFractalsForMenu } from '@/fractals/registry';
 import type { FractalId } from '@/fractals/types';
 import { useExplorerStore } from '@/state/ExplorerStore';
-import { SnapshotStrip } from './SnapshotStrip';
+import { ModePill } from './ModePill';
 import { useHudIntent } from './hud/HudIntentContext';
 
 export const FractalSelector = memo(function FractalSelector() {
@@ -71,12 +71,10 @@ export const FractalSelector = memo(function FractalSelector() {
                 </button>
               ))}
             </div>
-            <div className="mt-[6px] pt-[4px]">
-              <SnapshotStrip />
-            </div>
           </div>
         )}
       </div>
+      <ModePill />
     </div>
   );
 });

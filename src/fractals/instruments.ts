@@ -116,9 +116,9 @@ const INSTRUMENTS: Record<FractalId, FractalInstrument> = {
     labels: { power: 'Spikiness', bailout: 'Escape', cx: 'Lobe Spin', cy: 'Pole Stretch' },
     macroWeights: { pulsePower: 1.0, depthIters: 0.85, pulseWarpX: 0.85, pulseWarpY: 0.75, driftWarpX: 0.70, driftWarpY: 0.65 },
     snapshots: [
-      { name: 'Neon Spire', macros: { pulse: 0.85, depth: 0.7, drift: 0.5, void: 0.35 }, camera: { power: 11, zoom: 2.5 }, palette: 1 },
-      { name: 'Deep Bulb', macros: { pulse: 0.4, depth: 0.9, drift: 0.2, void: 0.7 }, camera: { zoom: 3.5 }, palette: 0 },
-      { name: 'Electric Storm', macros: { pulse: 0.75, depth: 0.5, drift: 0.85, void: 0.25 }, palette: 3 },
+      { name: 'Neon Spire', macros: { pulse: 0.85, depth: 0.7, drift: 0.5, void: 0.35 }, camera: { power: 12, bailout: 2.5, cx: 0, cy: 0.95, zoom: 5.2 }, palette: 1 },
+      { name: 'Deep Bulb', macros: { pulse: 0.4, depth: 0.9, drift: 0.2, void: 0.7 }, camera: { power: 3.5, bailout: 2.0, cx: 0, cy: -0.2, zoom: 2.2 }, palette: 6 },
+      { name: 'Electric Storm', macros: { pulse: 0.75, depth: 0.5, drift: 0.85, void: 0.25 }, camera: { power: 8, bailout: 4.0, cx: 1.0, cy: -0.8, zoom: 4.5 }, palette: 5 },
     ],
   }),
   1: inst({
@@ -149,24 +149,25 @@ const INSTRUMENTS: Record<FractalId, FractalInstrument> = {
     labels: { power: 'Petals', bailout: 'Cell Size', cx: 'Nova X', cy: 'Nova Y' },
     macroWeights: { pulseWarpX: 0.85, pulseWarpY: 0.85, pulsePower: 0.55, depthIters: 0.35, depthZoom: 0.5 },
     snapshots: [
-      { name: 'Three Petals', macros: { pulse: 0.5, depth: 0.55, drift: 0.4, void: 0.45 }, camera: { cx: 0.15, cy: 0.25 }, palette: 1 },
-      { name: 'Newton Drift', macros: { pulse: 0.4, depth: 0.5, drift: 0.7, void: 0.4 }, palette: 0 },
+      { name: 'Three Petals', macros: { pulse: 0.5, depth: 0.55, drift: 0.4, void: 0.45 }, camera: { power: 6.5, bailout: 1.75, cx: 1.3, cy: 0.2 }, palette: 1 },
+      { name: 'Newton Drift', macros: { pulse: 0.4, depth: 0.5, drift: 0.7, void: 0.4 }, camera: { power: 6.5, bailout: 1.75, cx: 0, cy: 0, zoom: 3.4 }, palette: 7 },
     ],
   }),
   3: inst({
     labels: { power: 'Scale', bailout: 'Void Gap', cx: 'Branching', cy: 'Cross Width', hideBailout: true },
     macroWeights: { pulsePower: 0.2, depthIters: 1.0, depthZoom: 0.95, pulseWarpX: 0.45, pulseWarpY: 0.4 },
     snapshots: [
-      { name: 'Sponge Core', macros: { pulse: 0.4, depth: 0.95, drift: 0.2, void: 0.5 }, camera: { zoom: 3 }, palette: 0 },
-      { name: 'Lattice', macros: { pulse: 0.3, depth: 0.85, drift: 0.35, void: 0.65 }, camera: { zoom: 5 }, palette: 2 },
+      { name: 'Sponge Core', macros: { pulse: 0.4, depth: 0.95, drift: 0.2, void: 0.5 }, camera: { power: 7.8, cx: 0, cy: 0, zoom: 3 }, palette: 0 },
+      { name: 'Lattice', macros: { pulse: 0.3, depth: 0.85, drift: 0.35, void: 0.65 }, camera: { power: 14, cx: 1.1, cy: 1.1, zoom: 7 }, palette: 2 },
+      { name: 'Monolith', macros: { pulse: 0.5, depth: 0.9, drift: 0.3, void: 0.4 }, camera: { power: 12, cx: -1.1, cy: -1.1, zoom: 5 }, palette: 7 },
     ],
   }),
   4: inst({
     labels: { power: 'Inversion', bailout: 'Sphere Gap', cx: 'Twist X', cy: 'Twist Y' },
     macroWeights: { pulsePower: 0.85, depthZoom: 0.7, driftWarpX: 0.6 },
     snapshots: [
-      { name: 'Gasket', macros: { pulse: 0.55, depth: 0.75, drift: 0.3, void: 0.55 }, camera: { zoom: 4 }, palette: 0 },
-      { name: 'Bubble Storm', macros: { pulse: 0.8, depth: 0.5, drift: 0.65, void: 0.3 }, palette: 1 },
+      { name: 'Gasket', macros: { pulse: 0.55, depth: 0.75, drift: 0.3, void: 0.55 }, camera: { power: 2.5, cx: -0.4, cy: -0.6, zoom: 3 }, palette: 0 },
+      { name: 'Bubble Storm', macros: { pulse: 0.8, depth: 0.5, drift: 0.65, void: 0.3 }, camera: { power: 9, cx: -0.9, cy: 0.9, zoom: 6 }, palette: 1 },
     ],
   }),
   5: inst({
@@ -192,14 +193,14 @@ const INSTRUMENTS: Record<FractalId, FractalInstrument> = {
       {
         name: 'Solid Nest',
         macros: { pulse: 0.5, depth: 0.9, drift: 0.4, void: 0.28 },
-        camera: { zoom: 2.1, rotX: 0.32, rotY: 0.6, power: 8.5, bailout: 2.8, cx: 0.15, cy: -0.12 },
+        camera: { zoom: 2.1, rotX: 0.32, rotY: 0.6, power: 5, bailout: 1.6, cx: -0.4, cy: 0.3 },
         atmosphere: { fog: 0.28, fov: 1.35, gamma: 0.55, vignette: 0.65 },
         palette: 2,
       },
       {
         name: 'Out of Itself',
         macros: { pulse: 0.75, depth: 0.95, drift: 0.7, void: 0.25 },
-        camera: { zoom: 2.2, rotX: 0.4, rotY: 1.1, power: 11.5, bailout: 3.8, cx: 0.8, cy: -0.65 },
+        camera: { zoom: 2.2, rotX: 0.4, rotY: 1.1, power: 12, bailout: 4.0, cx: 0.9, cy: -0.8 },
         atmosphere: { fog: 0.25, fov: 1.4, gamma: 0.55, vignette: 0.6 },
         palette: 0,
       },
@@ -209,8 +210,9 @@ const INSTRUMENTS: Record<FractalId, FractalInstrument> = {
     labels: { power: 'Fold Scale', bailout: 'Grid Size', cx: 'Vertex Twist', cy: 'Vertex Tilt' },
     macroWeights: { pulsePower: 0.75, depthIters: 0.9, depthZoom: 0.7, pulseWarpX: 0.8, pulseWarpY: 0.75, driftWarpX: 0.6, driftWarpY: 0.55 },
     snapshots: [
-      { name: 'Tetra Face', macros: { pulse: 0.35, depth: 0.85, drift: 0.3, void: 0.55 }, camera: { zoom: 5, rotX: 0.3, rotY: 0.5 }, palette: 0 },
-      { name: 'Sierpinski Deep', macros: { pulse: 0.4, depth: 0.95, drift: 0.2, void: 0.7 }, camera: { zoom: 5.5 }, palette: 3 },
+      { name: 'Tetra Face', macros: { pulse: 0.35, depth: 0.85, drift: 0.3, void: 0.55 }, camera: { power: 1, bailout: 1, cx: 0, cy: 0, zoom: 5, rotX: 0.3, rotY: 0.5 }, palette: 0 },
+      { name: 'Sierpinski Deep', macros: { pulse: 0.4, depth: 0.95, drift: 0.2, void: 0.7 }, camera: { power: 8, bailout: 4, cx: 0.9, cy: -0.9, zoom: 1.6 }, palette: 3 },
+      { name: 'Spire', macros: { pulse: 0.5, depth: 0.9, drift: 0.35, void: 0.5 }, camera: { power: 4.5, bailout: 3, cx: -0.5, cy: 1.1, zoom: 9 }, palette: 1 },
     ],
   }),
   7: inst({
@@ -230,14 +232,14 @@ const INSTRUMENTS: Record<FractalId, FractalInstrument> = {
       {
         name: 'Lattice',
         macros: { pulse: 0.4, depth: 0.45, drift: 0.3, void: 0.35 },
-        camera: { zoom: 3.8, rotX: 0.4, rotY: 0.65, power: 6.5, bailout: 2.2, cx: -0.15, cy: 0.1 },
+        camera: { zoom: 3.8, rotX: 0.4, rotY: 0.65, power: 4, bailout: 1.5, cx: -0.4, cy: 0.3 },
         atmosphere: { fog: 0.32, fov: 1.35, gamma: 0.55, vignette: 0.7 },
         palette: 0,
       },
       {
         name: 'Drift',
         macros: { pulse: 0.55, depth: 0.5, drift: 0.5, void: 0.3 },
-        camera: { zoom: 3.3, rotX: 0.5, rotY: 0.9, power: 7.5, bailout: 2.6, cx: 0.25, cy: -0.2 },
+        camera: { zoom: 3.3, rotX: 0.5, rotY: 0.9, power: 12, bailout: 2, cx: 0.5, cy: 0.4 },
         atmosphere: { fog: 0.28, fov: 1.4, gamma: 0.55, vignette: 0.65 },
         palette: 1,
       },
@@ -247,8 +249,8 @@ const INSTRUMENTS: Record<FractalId, FractalInstrument> = {
     labels: { power: 'Spike Scale', bailout: 'Sort Gap', cx: 'Phase X', cy: 'Phase Y' },
     macroWeights: { pulsePower: 0.7, depthIters: 0.85, depthZoom: 0.8 },
     snapshots: [
-      { name: 'Stellated', macros: { pulse: 0.65, depth: 0.8, drift: 0.45, void: 0.4 }, palette: 3 },
-      { name: 'Limit Set', macros: { pulse: 0.45, depth: 0.9, drift: 0.25, void: 0.65 }, palette: 0 },
+      { name: 'Stellated', macros: { pulse: 0.65, depth: 0.8, drift: 0.45, void: 0.4 }, camera: { power: 10, cx: 1, cy: 0, zoom: 2.2 }, palette: 3 },
+      { name: 'Limit Set', macros: { pulse: 0.45, depth: 0.9, drift: 0.25, void: 0.65 }, camera: { power: 0, cx: -1, cy: 0, zoom: 2.6 }, palette: 0 },
     ],
   }),
   9: inst({
@@ -264,24 +266,24 @@ const INSTRUMENTS: Record<FractalId, FractalInstrument> = {
       depthZoom: 0.55,
     },
     snapshots: [
-      { name: '4D Slice', macros: { pulse: 0.55, depth: 0.65, drift: 0.45, void: 0.4 }, camera: { zoom: 3.2 }, palette: 1 },
-      { name: 'Quaternion Dream', macros: { pulse: 0.7, depth: 0.55, drift: 0.75, void: 0.5 }, camera: { cx: 0.25, cy: -0.2 }, palette: 3 },
+      { name: '4D Slice', macros: { pulse: 0.55, depth: 0.65, drift: 0.45, void: 0.4 }, camera: { power: 5, bailout: 2, cx: -0.6, cy: 0.6, zoom: 5.5 }, palette: 1 },
+      { name: 'Quaternion Dream', macros: { pulse: 0.7, depth: 0.55, drift: 0.75, void: 0.5 }, camera: { power: 12, bailout: 4.5, cx: 0.7, cy: -0.6, zoom: 3.0 }, palette: 3 },
     ],
   }),
   10: inst({
     labels: { power: 'Hybrid Power', bailout: 'Fold Escape', cx: 'Blend X', cy: 'Blend Y' },
     macroWeights: { pulsePower: 1.0, pulseBailout: 0.7, depthIters: 0.8, driftSpeed: 0.9 },
     snapshots: [
-      { name: 'Bulb vs Box', macros: { pulse: 0.7, depth: 0.75, drift: 0.6, void: 0.4 }, palette: 1 },
-      { name: 'Fractal Fight', macros: { pulse: 0.85, depth: 0.6, drift: 0.8, void: 0.25 }, palette: 1 },
+      { name: 'Bulb vs Box', macros: { pulse: 0.7, depth: 0.75, drift: 0.6, void: 0.4 }, camera: { power: 6, bailout: 2, zoom: 3 }, palette: 1 },
+      { name: 'Fractal Fight', macros: { pulse: 0.85, depth: 0.6, drift: 0.8, void: 0.25 }, camera: { power: 12, bailout: 4, zoom: 3 }, palette: 4 },
     ],
   }),
   11: inst({
     labels: { power: 'Layer Scale', bailout: 'Surf Gap', cx: 'Fold Width', cy: 'Fold Depth' },
     macroWeights: { pulsePower: 0.85, depthIters: 0.75, depthZoom: 0.6, pulseWarpX: 0.7, pulseWarpY: 0.65, driftWarpX: 0.5, driftWarpY: 0.5 },
     snapshots: [
-      { name: 'Amazing', macros: { pulse: 0.6, depth: 0.7, drift: 0.45, void: 0.5 }, camera: { zoom: 0.2, rotX: 0.35, rotY: 0.55 }, palette: 2 },
-      { name: 'Surf Layers', macros: { pulse: 0.75, depth: 0.85, drift: 0.35, void: 0.55 }, camera: { zoom: 0.2, rotX: 0.4, rotY: 0.7 }, palette: 0 },
+      { name: 'Amazing', macros: { pulse: 0.6, depth: 0.7, drift: 0.45, void: 0.5 }, camera: { power: 8.8, bailout: 3.5, zoom: 0.2, rotX: 0.35, rotY: 0.55 }, palette: 2 },
+      { name: 'Surf Layers', macros: { pulse: 0.75, depth: 0.85, drift: 0.35, void: 0.55 }, camera: { power: 13, bailout: 1, zoom: 0.2, rotX: 0.4, rotY: 0.7 }, palette: 0 },
     ],
   }),
   12: inst({
@@ -291,14 +293,14 @@ const INSTRUMENTS: Record<FractalId, FractalInstrument> = {
       {
         name: 'Grand Void',
         macros: { pulse: 0.65, depth: 0.55, drift: 0.3, void: 0.5 },
-        camera: { zoom: 5.2, rotX: 0.48, rotY: 0.85, power: 8.5, bailout: 2.8, cx: 0.1, cy: -0.08 },
+        camera: { zoom: 5.2, rotX: 0.48, rotY: 0.85, power: 13, bailout: 5, cx: 0.6, cy: 0.6 },
         atmosphere: { fog: 0.38, fov: 1.5, gamma: 0.55, vignette: 0.7 },
         palette: 0,
       },
       {
-        name: 'Sparse Ribs',
+        name: 'Dense Halls',
         macros: { pulse: 0.8, depth: 0.5, drift: 0.4, void: 0.45 },
-        camera: { zoom: 4.4, rotX: 0.55, rotY: 1.05, power: 10.5, bailout: 3.1, cx: 0.22, cy: 0.12 },
+        camera: { zoom: 4.4, rotX: 0.55, rotY: 1.05, power: 3.5, bailout: 1.5, cx: -0.6, cy: -0.5 },
         atmosphere: { fog: 0.34, fov: 1.55, gamma: 0.55, vignette: 0.65 },
         palette: 1,
       },
@@ -322,23 +324,23 @@ const INSTRUMENTS: Record<FractalId, FractalInstrument> = {
       {
         name: 'Kaleido',
         macros: { pulse: 0.42, depth: 0.5, drift: 0.35, void: 0.3 },
-        camera: { zoom: 3.2, rotX: 0.4, rotY: 0.65, power: 7.0, bailout: 2.3, cx: 0.1, cy: -0.08 },
+        camera: { zoom: 3.2, rotX: 0.4, rotY: 0.65, power: 2, bailout: 2.3, cx: -1, cy: 0 },
         atmosphere: { fog: 0.26, fov: 1.38, gamma: 0.55, vignette: 0.6 },
         palette: 0,
       },
       {
         name: 'Spin Fold',
         macros: { pulse: 0.5, depth: 0.52, drift: 0.55, void: 0.28 },
-        camera: { zoom: 3.0, rotX: 0.45, rotY: 0.9, power: 7.5, bailout: 2.4, cx: 0.2, cy: 0.15 },
+        camera: { zoom: 3.0, rotX: 0.45, rotY: 0.9, power: 7, bailout: 2.4, cx: 0, cy: 1 },
         atmosphere: { fog: 0.22, fov: 1.35, gamma: 0.54, vignette: 0.55 },
         palette: 1,
       },
       {
         name: 'Crystal Hall',
         macros: { pulse: 0.45, depth: 0.48, drift: 0.22, void: 0.32 },
-        camera: { zoom: 3.5, rotX: 0.35, rotY: 0.5, power: 6.8, bailout: 2.1, cx: -0.04, cy: 0.1 },
+        camera: { zoom: 3.6, rotX: 0.35, rotY: 0.5, power: 4.5, bailout: 2.1, cx: 0, cy: -1 },
         atmosphere: { fog: 0.3, fov: 1.4, gamma: 0.55, vignette: 0.65 },
-        palette: 3,
+        palette: 7,
       },
     ],
   }),
@@ -376,16 +378,16 @@ const INSTRUMENTS: Record<FractalId, FractalInstrument> = {
       {
         name: 'Temple',
         macros: { pulse: 0.45, depth: 1.0, drift: 0.3, void: 0.25 },
-        camera: { zoom: 0.05, rotX: 0.42, rotY: 0.75 },
+        camera: { zoom: 0.05, rotX: 0.42, rotY: 0.75, power: 4, bailout: 1.3, cx: -1, cy: 0 },
         atmosphere: { fog: 0.28, fov: 1.4, gamma: 0.55, vignette: 0.7 },
         palette: 0,
       },
       {
         name: 'Cross Void',
         macros: { pulse: 0.65, depth: 1.0, drift: 0.55, void: 0.22 },
-        camera: { zoom: 0.05, rotX: 0.5, rotY: 0.95 },
+        camera: { zoom: 0.3, rotX: 0.5, rotY: 0.95, power: 12, bailout: 5.5, cx: 1, cy: 0.9 },
         atmosphere: { fog: 0.25, fov: 1.45, gamma: 0.55, vignette: 0.65 },
-        palette: 2,
+        palette: 6,
       },
     ],
   }),
