@@ -32,24 +32,45 @@ float sdeMandelbox(vec3 pos, float scale, float minR2, float fold, int iters) {
   }
   gOrbit = clamp(smoothI / max(float(iters), 1.0), 0.0, 1.0);
 
-  return 0.5 * (length(z) - abs(scale - 1.0)) / max(abs(dr), 0.0001);
+  return 0.5 * (length(z) - (abs(scale) - 1.0)) / max(abs(dr), 0.0001);
 }
 
 float sceneSDE(vec3 p) {
   int it = int(u_iter);
-  if (it > 22) it = 22;
-  if (it < 8) it = 8;
+  if (it > 16) it = 16;
+  if (it < 10) it = 10;
 
-  // Wide scale band — morphing power opens/closes the whole sponge
-  float sc = mix(1.65, 2.85, clamp((u_power - 2.5) / 12.0, 0.0, 1.0));
-  // Sphere-fold cavities breathe with bailout
-  float minR2 = clamp(0.38 - u_bailout * 0.055, 0.06, 0.38);
-  // Fold width from warp — corridors stretch and squeeze
-  float fold = clamp(1.0 + abs(u_jc.x) * 0.35 + abs(u_jc.y) * 0.2, 0.85, 1.55);
+  // Higher scale hollows the interior into lattice halls; below ~2.3 the core packs solid,
+  // above ~3 the detail turns to noise.
+  float sc = mix(2.3, 3.0, clamp((u_power - 2.5) / 12.0, 0.0, 1.0));
+  float minR2 = clamp(0.4 - u_bailout * 0.05, 0.1, 0.4);
+  float fold = clamp(1.0 + u_jc.x * 0.12 - abs(u_jc.y) * 0.08, 0.86, 1.14);
 
-  // Strong Julia offset — structure drifts, not a fixed monument
-  vec3 q = p + vec3(u_jc.x, u_jc.y, -u_jc.x * 0.35 + u_jc.y * 0.2) * 0.55;
+  float k = 1.0;
+  vec3 q = p * k;
 
-  float k = 2.6;
-  return sdeMandelbox(q * k, sc, minR2, fold, it) / k;
+  // The set lives in |z|∞ ≤ 2·fold·(s+1)/(s-1). Fold space into the shell [R, R·g) so
+  // that generation repeats inward and outward forever — there is no edge to fly off.
+  // The shell stops short of the solid outer skin so every generation is open lattice.
+  float g = sc;
+  float outer = 0.9 * 2.0 * fold * (sc + 1.0) / (sc - 1.0);
+  float R = outer / g;
+  float gen = 1.0;
+  for (int i = 0; i < 16; i++) {
+    float m = max(abs(q.x), max(abs(q.y), abs(q.z)));
+    if (m >= outer) {
+      q /= g;
+      gen *= g;
+    } else if (m < R) {
+      q *= g;
+      gen /= g;
+    } else {
+      break;
+    }
+  }
+
+  // Julia drift inside each generation — corridors slide without breaking the nesting
+  vec3 qj = q + vec3(u_jc.x, u_jc.y, -u_jc.x * 0.35 + u_jc.y * 0.2) * 0.12;
+
+  return sdeMandelbox(qj, sc, minR2, fold, it) * gen / k;
 }

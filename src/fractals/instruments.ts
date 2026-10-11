@@ -57,6 +57,8 @@ export interface FractalInstrument {
   macroWeights: MacroWeights;
   snapshots: FractalSnapshot[];
   remixRanges: RemixRanges;
+  /** Mode applied whenever this fractal is selected. */
+  defaultMode?: string;
 }
 
 const DEFAULT_WEIGHTS: MacroWeights = {
@@ -101,6 +103,7 @@ function inst(
     macroWeights?: Partial<MacroWeights>;
     remixRanges?: RemixRanges;
     snapshots: FractalSnapshot[];
+    defaultMode?: string;
   },
 ): FractalInstrument {
   return {
@@ -108,6 +111,7 @@ function inst(
     remixRanges: partial.remixRanges ?? DEFAULT_REMIX,
     labels: { ...DEFAULT_LABELS, ...partial.labels },
     snapshots: partial.snapshots,
+    defaultMode: partial.defaultMode,
   };
 }
 
@@ -404,6 +408,7 @@ const INSTRUMENTS: Record<FractalId, FractalInstrument> = {
       voidFog: 0.4,
       voidVignette: 0.6,
     },
+    defaultMode: 'Cathedral',
     snapshots: [
       {
         name: 'Cathedral',

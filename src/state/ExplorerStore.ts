@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { applyFractalPreset, snapCameraToView } from '@/fractals/presets';
 import { applyMacrosToTarget, buildMacroBaseline } from '@/fractals/macroMapper';
-import { getSnapshots, type FractalSnapshot } from '@/fractals/instruments';
+import { getInstrument, getSnapshots, type FractalSnapshot } from '@/fractals/instruments';
 import { getFractalSlug } from '@/fractals/registry';
 import { remixState } from '@/fractals/remix';
 import { decodeSeed, encodeSeed, getSeedFromUrl, setSeedInUrl } from '@/fractals/seeds';
@@ -251,6 +251,9 @@ export const useExplorerStore = create<ExplorerStore>((set, get) => ({
       iters: result.iters,
       activeMode: null,
     });
+
+    const defaultMode = getInstrument(id).defaultMode;
+    if (defaultMode) get().applySnapshot(defaultMode);
   },
 
   setPaletteIdx: (idx) => set({ paletteIdx: clampPaletteIdx(idx) }),
