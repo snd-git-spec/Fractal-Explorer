@@ -21,7 +21,7 @@ export const FRACTALS: FractalMeta[] = [
   { id: 13, slug: 'kifs', name: 'KIFS', label: 'Infinite Kaleidoscopic IFS', equation: 'Fold_octa ∘ (p ↦ s p − τ)  ·  S = ⋃ sᵏ·A (L∞ shells)  ·  Knighty KIFS — infinite nested halls' },
   { id: 14, slug: 'kali', name: 'Kali Set', label: 'Inversion Julia', equation: 'p → |p|/|p|² − C  ·  Kali Set (Fragmentarium) — morphing cavern lattice' },
   { id: 15, slug: 'jerusalem-cube', name: 'Jerusalem Cube', label: 'Infinite Greek-Cross Temple', equation: 'S = ⋃ scᵏ·A — cross-cut cubes (vA/vB) self-similar inward & outward  ·  Infinite Jerusalem temple' },
-  { id: 16, slug: 'penrose-quasicrystal', name: 'Penrose Quasicrystal', label: 'φ-Cavern Lattice', equation: 'abs ∘ invert ∘ icosa-trap  ·  Immersive golden Kali caverns (5-fold / φ)' },
+  { id: 16, slug: 'penrose-quasicrystal', name: 'φ-Cavern', label: 'Golden Kali Caverns', equation: 'abs ∘ invert ∘ icosa-trap  ·  Immersive golden Kali caverns (5-fold / φ)' },
   { id: 17, slug: 'hyperbolic-kaleidoscope', name: 'Hyperbolic Kaleidoscope', label: 'Ideal Polyhedron Cusps', equation: 'Icosa-fold ∘ sphere-inversion × scale  ·  Hyperbolic kaleidoscope (Knighty / Poincaré)' },
   { id: 18, slug: 'asurf-menger', name: 'Tidefold', label: 'Surf Lattice Hybrid', equation: 'S = ⋃ scᵏ·A — Surf caverns → Menger sponge, self-similar forever  ·  Tidefold' },
 ];
@@ -42,7 +42,7 @@ export const FRACTAL_MENU_ORDER: readonly FractalId[] = [
   1,  // Mandelbox
   6,  // Sierpinski
   13, // KIFS
-  16, // Penrose Quasicrystal
+  16, // φ-Cavern
   11, // Amazing Surf
   12, // Kleinian
   8,  // Kleinian IFS

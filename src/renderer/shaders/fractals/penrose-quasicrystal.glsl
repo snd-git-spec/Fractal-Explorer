@@ -1,4 +1,4 @@
-// Penrose Quasicrystal — immersive golden caverns.
+// φ-Cavern — immersive golden caverns.
 // Kali inversion + icosahedral φ trap, with curved bulk so walls aren't flat planes.
 
 float smin(float a, float b, float k) {
@@ -47,8 +47,8 @@ float sdePenroseCavern(vec3 p, vec3 param, float twist, int iters) {
 
   // Corrugate sheets in-plane so they stop reading as flat 2D walls
   float ridge =
-    sin(dot(p, n1) * 5.2) * sin(dot(p, n3) * 4.1) * 0.055 +
-    sin(dot(p, n5) * 3.7 + length(p) * 2.4) * 0.04;
+    sin(dot(p, n1) * 4.2) * sin(dot(p, n3) * 3.3) * 0.035 +
+    sin(dot(p, n5) * 3.0 + length(p) * 2.0) * 0.025;
   float sheets = abs(planes - ridge);
 
   // Volumetric bulk — golden sphere / tube fields break the planar look
@@ -67,7 +67,7 @@ float sdePenroseCavern(vec3 p, vec3 param, float twist, int iters) {
 
 float sceneSDE(vec3 p) {
   int it = int(u_iter);
-  if (it > 9) it = 9;
+  if (it > 8) it = 8;
   if (it < 5) it = 5;
 
   vec3 param = vec3(
@@ -77,5 +77,5 @@ float sceneSDE(vec3 p) {
   );
   float twist = clamp(u_jc.x * 0.12 + u_jc.y * 0.08, -0.3, 0.3);
 
-  return sdePenroseCavern(p * 0.48, param, twist, it);
+  return sdePenroseCavern(p * 0.48, param * 1.3, twist, it);
 }

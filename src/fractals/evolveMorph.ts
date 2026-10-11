@@ -50,7 +50,8 @@ const MORPH: Record<FractalId, EvolveMorphConfig> = {
   13: { ...BASE, powerMul: 1.8, bailoutMul: 1.4, warpMul: 1.35, detailMul: 0.45 },
   14: { ...BASE, morphRate: 0.07, powerMul: 1.8, bailoutMul: 1.5, warpMul: 1.85, detailMul: 1.2 },
   15: { ...BASE, morphRate: 0.085, powerMul: 2.0, bailoutMul: 1.85, warpMul: 2.1, detailMul: 1.3 },
-  16: { ...BASE, morphRate: 0.022, powerMul: 0.85, bailoutMul: 0.8, warpMul: 0.75, detailMul: 0.45 },
+  // Penrose: Kali inversion amplifies param/iter changes — dedicated narrow crawl, no detail snaps
+  16: { ...BASE, morphRate: 0.022, powerMul: 0.85, bailoutMul: 0.8, warpMul: 0.75, detailMul: 0 },
   17: { ...BASE, morphRate: 0.065, powerMul: 2.0, bailoutMul: 1.75, warpMul: 1.9, detailMul: 1.2 },
   18: { ...BASE, morphRate: 0.04, powerMul: 0.95, bailoutMul: 0.9, warpMul: 0.95, detailMul: 0.25 },
 };

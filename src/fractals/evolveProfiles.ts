@@ -269,7 +269,7 @@ function pathRollAt(
   seeds: CameraOrbit['seeds'],
   fractalId: FractalId,
 ): { roll: number; rollVel: number } {
-  const amp = fractalId === 13 ? 1.3 : 1.0;
+  const amp = fractalId === 13 ? 1.3 : fractalId === 16 ? 0.55 : 1.0;
   const wR = yawRate * 0.58 * (0.88 + 0.22 * seeds.elRateScale);
   const wR2 = wR * GOLDEN * 1.35;
   const wR3 = wR * SILVER * 2.2;
@@ -564,6 +564,37 @@ function morphFractalShape(
     return;
   }
 
+  // Penrose: gentle crawl around baseline — inversion + per-iteration twist turn wide swings into chaos
+  if (fractalId === 16) {
+    const amp = 0.35 + 0.15 * a;
+    const ph = morphP * 0.6;
+    const baseP = Number.isFinite(baseline.power) ? baseline.power : 8;
+    const baseB = Number.isFinite(baseline.bailout) ? baseline.bailout : 2;
+    const baseX = Number.isFinite(baseline.cx) ? baseline.cx : 0;
+    const baseY = Number.isFinite(baseline.cy) ? baseline.cy : 0;
+    tgt.power = clamp(
+      baseP + Math.sin(ph) * 1.2 * amp + Math.sin(ph * 0.618 + 1.1) * 0.6 * amp,
+      3,
+      14,
+    );
+    tgt.bailout = clamp(
+      baseB + Math.sin(ph * 0.55 + 0.4) * 0.5 * amp + Math.cos(ph * 0.9 + 1.3) * 0.25 * amp,
+      1,
+      6,
+    );
+    tgt.cx = clamp(
+      baseX + Math.sin(ph * 0.35 + 0.2) * 0.3 * amp + Math.cos(ph * 0.6 + 1.2) * 0.15 * amp,
+      -1.15,
+      1.15,
+    );
+    tgt.cy = clamp(
+      baseY + Math.sin(ph * 0.3 + 1.6) * 0.3 * amp + Math.sin(ph * 0.65 + 0.5) * 0.15 * amp,
+      -1.15,
+      1.15,
+    );
+    return;
+  }
+
   // Tidefold: slow in-band crawl around the tuned Surf / Gap / Twist defaults
   if (fractalId === 18) {
     const amp = 0.4 + 0.2 * a;
@@ -683,7 +714,7 @@ function morphColor(
   const a = beh.colorAmp;
   // Wide, shape-led hue tour — surfaces keep moving through the palette
   const clock = morphP * 1.05 + p * 0.35;
-  const tourRate = fractalId === 5 ? 0.48 : fractalId === 12 ? 0.22 : 0.28;
+  const tourRate = fractalId === 5 ? 0.48 : fractalId === 12 ? 0.22 : fractalId === 16 ? 0.16 : 0.28;
   const tour = ((clock * tourRate) % 2 + 2) % 2;
   const saw = tour < 1 ? tour * 2 - 1 : 3 - tour * 2;
   tgt.glow = clamp(
@@ -715,7 +746,7 @@ export function updateEvolveTargets(ctx: EvolveContext): EvolveResult {
   // Path clock = wall time (global tour). Pace only calms zoom breathe on dense fractals.
   const pace = orbitPace(fractalId, baseline.zoom);
   const orbitSpd = 0.28 + 0.42 * clamp(spd / 0.3, 0.5, 1.0);
-  const pathDt = dt * orbitSpd;
+  const pathDt = dt * orbitSpd * (fractalId === 16 ? 0.55 : 1);
   const zoomDt = pathDt * pace;
 
   const orbitP = ctx.orbitPhase + pathDt;
