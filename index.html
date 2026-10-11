@@ -3,11 +3,90 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>Fractal Explorer</title>
-    <style>html, body { height: 100%; margin: 0; } #root { height: 100%; }</style>
+    <title>Fractal Explorer — Fly Through Real-Time 3D Fractals in Your Browser</title>
+    <meta name="description" content="Explore 19 real-time 3D fractals in your browser: Mandelbulb, Mandelbox, Apollonian gasket, Menger sponge, Quaternion Julia, Kleinian and more. Free, no install — fly, morph, and record." />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <link rel="canonical" href="https://fractal-explorer-two.vercel.app/" />
+    <meta name="theme-color" content="#000408" />
+    <meta name="color-scheme" content="dark" />
+
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Fractals" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Fractal Explorer" />
+    <meta property="og:url" content="https://fractal-explorer-two.vercel.app/" />
+    <meta property="og:title" content="Fractal Explorer — Real-Time 3D Fractals" />
+    <meta property="og:description" content="Fly through 19 infinite 3D fractals — Mandelbulb, Mandelbox, Apollonian gasket, Kleinian and more — rendered live in your browser." />
+    <meta property="og:image" content="https://fractal-explorer-two.vercel.app/og-image.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="A ray-marched Mandelbulb fractal surface in iridescent teal, gold and violet" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Fractal Explorer — Real-Time 3D Fractals" />
+    <meta name="twitter:description" content="Fly through 19 infinite 3D fractals rendered live in your browser." />
+    <meta name="twitter:image" content="https://fractal-explorer-two.vercel.app/og-image.jpg" />
+    <meta name="twitter:image:alt" content="A ray-marched Mandelbulb fractal surface in iridescent teal, gold and violet" />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Fractal Explorer",
+        "url": "https://fractal-explorer-two.vercel.app/",
+        "image": "https://fractal-explorer-two.vercel.app/og-image.jpg",
+        "description": "Interactive real-time 3D fractal explorer. Ray-marched in WebGL, with 19 fractals you can fly through, morph and record.",
+        "applicationCategory": "MultimediaApplication",
+        "operatingSystem": "Any (WebGL-capable browser)",
+        "browserRequirements": "Requires WebGL",
+        "isAccessibleForFree": true,
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "featureList": [
+          "Mandelbulb", "Mandelbox", "Apollonian gasket", "Menger sponge", "Sierpinski tetrahedron",
+          "Quaternion Julia set", "Pseudo Kleinian", "Kleinian IFS", "Kleinian", "KIFS",
+          "Kali set", "Amazing Surf", "Mandelbroth", "Nova / Newton fractal", "Dodecahedron IFS",
+          "Jerusalem cube", "Hyperbolic kaleidoscope", "φ-Cavern", "Tidefold",
+          "Video recording", "Shareable seed links"
+        ]
+      }
+    </script>
+
+    <style>html, body { height: 100%; margin: 0; background: #000408; } #root { height: 100%; }</style>
   </head>
   <body>
     <div id="root"></div>
+    <noscript>
+      <main style="color:#cfe;font-family:system-ui,sans-serif;max-width:40rem;margin:3rem auto;padding:0 1rem;line-height:1.5">
+        <h1>Fractal Explorer — real-time 3D fractals</h1>
+        <p>Fractal Explorer renders infinite 3D fractals live in your browser using WebGL ray marching. Fly the camera through them, morph their shapes, switch between modes, record video, and share exact views with a link. It needs JavaScript and WebGL to run.</p>
+        <h2>Fractals included</h2>
+        <ul>
+          <li><strong>Mandelbulb</strong> — spherical power-N extension of the Mandelbrot set (z → zⁿ + c).</li>
+          <li><strong>Mandelbox</strong> — box-fold and sphere-fold sponge of nested boxes.</li>
+          <li><strong>Apollonian gasket</strong> — packing of inversive spheres.</li>
+          <li><strong>Menger sponge</strong> — self-similar cube with crosses removed at every scale.</li>
+          <li><strong>Sierpinski tetrahedron</strong> — tetrahedral iterated function system.</li>
+          <li><strong>Quaternion Julia</strong> — 3D slice of a 4D Julia set (q → q² + c).</li>
+          <li><strong>Pseudo Kleinian</strong> — Julia-box lattice with plane traps.</li>
+          <li><strong>Kleinian</strong> and <strong>Kleinian IFS</strong> — fold sponges and Möbius limit-set lattices.</li>
+          <li><strong>KIFS</strong> — kaleidoscopic iterated function system of infinite nested halls.</li>
+          <li><strong>Kali set</strong> — inversion Julia caverns (p → |p|/|p|² − C).</li>
+          <li><strong>Amazing Surf</strong> — layered 2D-fold surfaces.</li>
+          <li><strong>Mandelbroth</strong> — hybrid alternating Mandelbulb and Mandelbox steps.</li>
+          <li><strong>Nova / Newton</strong> — three-petal Newton convergence basins.</li>
+          <li><strong>Dodecahedron IFS</strong> — five-fold recursive lace.</li>
+          <li><strong>Jerusalem cube</strong> — infinite Greek-cross temple.</li>
+          <li><strong>Hyperbolic kaleidoscope</strong> — ideal polyhedron cusps.</li>
+          <li><strong>φ-Cavern</strong> — golden-ratio Kali caverns with five-fold symmetry.</li>
+          <li><strong>Tidefold</strong> — Amazing Surf caverns flowing into a Menger sponge.</li>
+        </ul>
+      </main>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

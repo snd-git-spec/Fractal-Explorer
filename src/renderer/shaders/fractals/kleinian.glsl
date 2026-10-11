@@ -68,24 +68,26 @@ float sceneSDE(vec3 p) {
   float k = 1.55;
   q *= k;
 
-  // Wide shells — generations feel like vast nested chambers
-  float Rfill = mix(2.2, 3.1, tPow);
-  float R = Rfill / sc;
+  // Wide shells — generations feel like vast nested chambers. Fixed ratio: a morphing
+  // one compounds per generation and reads as the camera racing.
+  const float g = 2.55;
+  const float Rfill = 2.65;
+  float R = Rfill / g;
   float gen = 1.0;
   for (int i = 0; i < 16; i++) {
     float m = max(abs(q.x), max(abs(q.y), abs(q.z)));
-    if (m >= R * sc) {
-      q /= sc;
-      gen *= sc;
+    if (m >= R * g) {
+      q /= g;
+      gen *= g;
     } else if (m < R) {
-      q *= sc;
-      gen /= sc;
+      q *= g;
+      gen /= g;
     } else {
       break;
     }
   }
 
-  float deep = clamp(log(1.0 / max(gen, 1e-4)) / log(sc), 0.0, 4.0);
+  float deep = clamp(log(1.0 / max(gen, 1e-4)) / log(g), 0.0, 4.0);
   it = int(min(float(it) + deep, 16.0));
 
   return sdeKleinian(q, sc, fold, minR, fixedR, it) * gen / k;

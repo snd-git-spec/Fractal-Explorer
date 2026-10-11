@@ -51,9 +51,10 @@ float sceneSDE(vec3 p) {
 
   // The set lives in |z|∞ ≤ 2·fold·(s+1)/(s-1). Fold space into the shell [R, R·g) so
   // that generation repeats inward and outward forever — there is no edge to fly off.
-  // The shell stops short of the solid outer skin so every generation is open lattice.
-  float g = sc;
-  float outer = 0.9 * 2.0 * fold * (sc + 1.0) / (sc - 1.0);
+  // Shell size must not follow the morphing scale/fold: any change compounds per
+  // generation and the whole world appears to rush toward or away from the camera.
+  const float g = 2.65;
+  const float outer = 3.98;
   float R = outer / g;
   float gen = 1.0;
   for (int i = 0; i < 16; i++) {

@@ -57,8 +57,9 @@ float sceneSDE(vec3 p) {
   float branch = clamp(u_power * 0.045 + 2.65 + u_jc.x * 0.18, 2.2, 3.8);
   float spread = clamp(3.0 + u_jc.y * 0.40, 2.2, 3.9);
 
-  // Generation ratio = sponge subdivision (classic 3, morphs with branch)
-  float sc = branch;
+  // Generation ratio = classic sponge subdivision. Must not follow the morphing branch:
+  // a changing ratio compounds per generation and reads as the camera racing.
+  const float sc = 3.0;
 
   // Unit sponge fills L∞ ≤ 1 — shell [1/sc, 1) is filled by A (no empty halo)
   float R = 1.0 / sc;

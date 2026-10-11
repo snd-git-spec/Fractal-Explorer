@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://fractal-explorer-two.vercel.app/sitemap.xml
